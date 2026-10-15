@@ -1,0 +1,138 @@
+"""ChromaDB vector store integration managing repository-segregated dense vector collections."""
+import os
+import logging
+from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger("code_archaeologist.chroma")
+
+try:
+    import chromadb
+    CHROMA_AVAILABLE = True
+except Exception as exc:
+    logger.error(f"ChromaDB library unavailable: {exc}")
+    CHROMA_AVAILABLE = False
+
+
+class ChromaService:
+    """Manages ChromaDB collections, vector embeddings, and similarity queries."""
+
+    def __init__(self, persist_directory: str = "./chroma_data"):
+        self.persist_directory = persist_directory
+        self.client = None
+        if CHROMA_AVAILABLE:
+            try:
+                host = os.getenv("CHROMA_HOST")
+                port = os.getenv("CHROMA_PORT")
+                if host and port:
+                    self.client = chromadb.HttpClient(host=host, port=int(port))
+                    logger.info(f"Connected to remote ChromaDB at {host}:{port}")
+                else:
+                    self.client = chromadb.PersistentClient(path=self.persist_directory)
+                    logger.info(f"ChromaDB persistent client initialized at {self.persist_directory}")
+            except Exception as e:
+                logger.warning(f"Persistent ChromaDB initialization failed ({e}); using in-process client.")
+                self.client = chromadb.Client()
+
+    def _get_collection_name(self, repository_id: str) -> str:
+        """Format safe collection name for ChromaDB."""
+        safe_id = repository_id.replace("-", "_").replace("/", "_").replace(".", "_")
+        return f"repo_{safe_id}"[:63]
+
+    def index_chunks(self, repository_id: str, chunks: List[Dict[str, Any]]) -> int:
+        """
+        Store code chunks in a repository-segregated ChromaDB collection.
+        Enforces complete repository isolation.
+        """
+        if not self.client or not chunks:
+            return 0
+
+        col_name = self._get_collection_name(repository_id)
+        # Re-create collection to guarantee clean state
+        try:
+            self.client.delete_collection(name=col_name)
+        except Exception:
+            pass
+
+        collection = self.client.get_or_create_collection(
+            name=col_name,
+            metadata={"repository_id": repository_id},
+        )
+
+        ids = [c["id"] for c in chunks]
+        docs = [
+            f"{c.get('symbol_name', '')} in {c['file_path']} ({c.get('language', '')}):\n{c['content']}"
+            for c in chunks
+        ]
+        metadatas = [
+            {
+                "repository_id": repository_id,
+                "file_path": c["file_path"],
+                "file_id": str(c.get("file_id", "")),
+                "symbol_name": str(c.get("symbol_name", "")),
+                "symbol_type": str(c.get("symbol_type", "")),
+                "language": str(c.get("language", "")),
+                "start_line": int(c.get("start_line", 1)),
+                "end_line": int(c.get("end_line", 1)),
+            }
+            for c in chunks
+        ]
+
+        batch_size = 100
+        for i in range(0, len(chunks), batch_size):
+            collection.add(
+                ids=ids[i:i + batch_size],
+                documents=docs[i:i + batch_size],
+                metadatas=metadatas[i:i + batch_size],
+            )
+
+        logger.info(f"Successfully indexed {len(chunks)} code chunks into ChromaDB collection {col_name}")
+        return len(chunks)
+
+    def similarity_search(
+        self,
+        repository_id: str,
+        query: str,
+        top_k: int = 5,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve top-K semantic code chunks for a query from repository collection.
+        Guarantees isolation by querying solely the repository-specific collection.
+        """
+        if not self.client:
+            return []
+
+        col_name = self._get_collection_name(repository_id)
+        try:
+            collection = self.client.get_collection(name=col_name)
+            results = collection.query(
+                query_texts=[query],
+                n_results=min(top_k, max(1, collection.count())),
+            )
+
+            retrieved: List[Dict[str, Any]] = []
+            if results and "documents" in results and results["documents"]:
+                for idx, doc in enumerate(results["documents"][0]):
+                    meta = results["metadatas"][0][idx] if "metadatas" in results and results["metadatas"] else {}
+                    distance = results["distances"][0][idx] if "distances" in results and results["distances"] else 0.0
+                    chunk_id = results["ids"][0][idx] if "ids" in results and results["ids"] else ""
+
+                    content_parts = doc.split(":\n", 1)
+                    raw_content = content_parts[1] if len(content_parts) > 1 else doc
+
+                    retrieved.append({
+                        "id": chunk_id,
+                        "file_path": meta.get("file_path", ""),
+                        "symbol_name": meta.get("symbol_name", ""),
+                        "symbol_type": meta.get("symbol_type", ""),
+                        "language": meta.get("language", ""),
+                        "start_line": meta.get("start_line", 1),
+                        "end_line": meta.get("end_line", 1),
+                        "content": raw_content,
+                        "similarity_score": round(max(0.0, 1.0 - (distance / 2.0)), 3),
+                        "distance": round(distance, 4),
+                    })
+
+            return retrieved
+        except Exception as e:
+            logger.warning(f"ChromaDB search failed on collection {col_name} ({e})")
+            return []

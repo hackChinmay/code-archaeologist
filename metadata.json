@@ -1,0 +1,6 @@
+{
+  "name": "Code Archaeologist",
+  "description": "An AI-Powered Codebase Understanding and Software Analysis Platform. Features AST parsing, static code analysis, ChromaDB vector search, and Gemini RAG for grounded codebase comprehension.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

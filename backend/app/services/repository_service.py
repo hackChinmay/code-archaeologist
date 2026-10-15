@@ -1,0 +1,718 @@
+"""Repository ingestion and analysis orchestration service using Tree-sitter, ChromaDB, and SQLAlchemy."""
+import os
+import json
+import time
+import base64
+import logging
+import datetime
+import requests
+from typing import List, Dict, Any, Optional
+from sqlalchemy.orm import Session
+
+from backend.app.database.mysql_db import Base, engine
+from backend.app.models.entities import (
+    RepositoryModel,
+    FileModel,
+    SymbolModel,
+    DependencyModel,
+    CodeChunkModel,
+)
+from backend.app.analyzers.tree_sitter_parser import TreeSitterParser
+from backend.app.analyzers.static_analyzer import StaticAnalyzer
+from backend.app.analyzers.code_chunker import CodeChunker
+from backend.app.rag.chroma_service import ChromaService
+
+logger = logging.getLogger("code_archaeologist.repo_service")
+
+# Auto-create all tables in the configured database (SQLite or MySQL)
+Base.metadata.create_all(bind=engine)
+
+
+class RepositoryService:
+    """Coordinates repository cloning, file scanning, AST parsing, chunking, and vector indexing."""
+
+    def __init__(self, chroma_service: ChromaService):
+        self.chroma_service = chroma_service
+        self.parser = TreeSitterParser()
+        self.static_analyzer = StaticAnalyzer()
+        self.chunker = CodeChunker()
+
+    def list_repositories(self, db: Session) -> List[Dict[str, Any]]:
+        """Return all analyzed repositories."""
+        repos = db.query(RepositoryModel).all()
+        result = []
+        for r in repos:
+            result.append(self._repo_to_dict(r))
+        return result
+
+    def get_repository(self, repo_id: str, db: Session) -> Optional[Dict[str, Any]]:
+        """Fetch single repository metadata by ID."""
+        repo = db.query(RepositoryModel).filter(RepositoryModel.id == repo_id).first()
+        return self._repo_to_dict(repo) if repo else None
+
+    def get_files(self, repo_id: str, db: Session) -> List[Dict[str, Any]]:
+        """Fetch all files belonging to a repository."""
+        files = db.query(FileModel).filter(FileModel.repository_id == repo_id).all()
+        res = []
+        for f in files:
+            symbols = db.query(SymbolModel).filter(SymbolModel.file_id == f.id).all()
+            res.append({
+                "id": f.id,
+                "repositoryId": f.repository_id,
+                "path": f.path,
+                "name": os.path.basename(f.path),
+                "language": f.language,
+                "size": f.size,
+                "linesCount": f.lines_count,
+                "content": f.content,
+                "symbolsCount": len(symbols),
+                "symbols": [
+                    {
+                        "id": s.id,
+                        "name": s.name,
+                        "type": s.type,
+                        "startLine": s.start_line,
+                        "endLine": s.end_line,
+                        "signature": s.signature,
+                        "docstring": s.docstring,
+                    }
+                    for s in symbols
+                ],
+            })
+        return res
+
+    def get_file(self, repo_id: str, file_path_or_id: str, db: Session) -> Optional[Dict[str, Any]]:
+        """Fetch a specific file by path or ID."""
+        f = (
+            db.query(FileModel)
+            .filter(
+                FileModel.repository_id == repo_id,
+                (FileModel.id == file_path_or_id) | (FileModel.path == file_path_or_id),
+            )
+            .first()
+        )
+        if not f:
+            return None
+        symbols = db.query(SymbolModel).filter(SymbolModel.file_id == f.id).all()
+        return {
+            "id": f.id,
+            "repositoryId": f.repository_id,
+            "path": f.path,
+            "name": os.path.basename(f.path),
+            "language": f.language,
+            "size": f.size,
+            "linesCount": f.lines_count,
+            "content": f.content,
+            "symbolsCount": len(symbols),
+            "symbols": [
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "type": s.type,
+                    "startLine": s.start_line,
+                    "endLine": s.end_line,
+                    "signature": s.signature,
+                }
+                for s in symbols
+            ],
+        }
+
+    def get_dependencies(self, repo_id: str, db: Session) -> List[Dict[str, Any]]:
+        """Fetch extracted dependency graph edges."""
+        deps = db.query(DependencyModel).filter(DependencyModel.repository_id == repo_id).all()
+        return [
+            {
+                "id": d.id,
+                "repositoryId": d.repository_id,
+                "source": d.source,
+                "target": d.target,
+                "relationshipType": d.relationship_type,
+                "category": d.category,
+                "sourceLine": d.source_line,
+            }
+            for d in deps
+        ]
+
+    def get_architecture(self, repo_id: str, db: Session) -> Dict[str, Any]:
+        """Generate dynamic DAG architecture graph from database models."""
+        repo = db.query(RepositoryModel).filter(RepositoryModel.id == repo_id).first()
+        if not repo:
+            return {"nodes": [], "edges": []}
+
+        files = db.query(FileModel).filter(FileModel.repository_id == repo_id).all()
+        symbols = db.query(SymbolModel).filter(SymbolModel.repository_id == repo_id).all()
+        deps = db.query(DependencyModel).filter(DependencyModel.repository_id == repo_id).all()
+
+        files_data = [
+            {
+                "id": f.id,
+                "path": f.path,
+                "name": os.path.basename(f.path),
+                "language": f.language,
+                "lines_count": f.lines_count,
+                "symbols_count": len([s for s in symbols if s.file_id == f.id]),
+            }
+            for f in files
+        ]
+
+        symbols_data = [
+            {
+                "id": s.id,
+                "name": s.name,
+                "type": s.type,
+                "file_path": (db.query(FileModel).filter(FileModel.id == s.file_id).first().path if db.query(FileModel).filter(FileModel.id == s.file_id).first() else ""),
+                "signature": s.signature,
+                "docstring": s.docstring,
+            }
+            for s in symbols
+        ]
+
+        deps_data = [
+            {
+                "id": d.id,
+                "source": d.source,
+                "target": d.target,
+                "relationship_type": d.relationship_type,
+                "category": d.category,
+            }
+            for d in deps
+        ]
+
+        repo_dict = self._repo_to_dict(repo)
+        return self.static_analyzer.build_architecture_graph(repo_dict, files_data, symbols_data, deps_data)
+
+    def analyze_repository(
+        self,
+        db: Session,
+        url: Optional[str] = None,
+        sample_id: Optional[str] = None,
+        local_files: Optional[List[Dict[str, Any]]] = None,
+        github_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Ingest, parse via Tree-sitter, analyze static dependencies, chunk, and index into ChromaDB.
+        """
+        # 1. Check Sample Repositories
+        if sample_id or (url and "fastapi-jwt-auth-service" in url):
+            target_sample = sample_id or "repo-python-fastapi"
+            return self._seed_fastapi_sample(db, target_sample)
+
+        # 2. Local Files Upload
+        if local_files:
+            return self._ingest_local_files(db, local_files)
+
+        # 3. GitHub Ingestion
+        if not url:
+            raise ValueError("Please provide a valid GitHub repository URL or select a sample repository.")
+
+        return self._ingest_github_repository(db, url, github_token)
+
+    def _ingest_local_files(self, db: Session, local_files: List[Dict[str, Any]]) -> Dict[str, Any]:
+        repo_id = f"repo-local-{int(time.time())}"
+        repo_name = "local-project-upload"
+
+        # Prepare File Models
+        raw_files = []
+        for idx, lf in enumerate(local_files):
+            path = lf.get("path", f"file_{idx + 1}.txt")
+            content = lf.get("content", "")
+            lang = self._detect_language(path)
+            lines = content.split("\n")
+            raw_files.append({
+                "id": f"f-{repo_id}-{idx + 1}",
+                "repository_id": repo_id,
+                "path": path,
+                "name": os.path.basename(path),
+                "language": lang,
+                "size": len(content),
+                "lines_count": len(lines),
+                "content": content,
+            })
+
+        return self._process_and_persist(
+            db=db,
+            repo_id=repo_id,
+            repo_name=repo_name,
+            owner="local-developer",
+            url="local://workspace",
+            description="Locally uploaded project workspace.",
+            raw_files=raw_files,
+        )
+
+    def _ingest_github_repository(self, db: Session, url: str, github_token: Optional[str] = None) -> Dict[str, Any]:
+        parts = url.rstrip("/").split("/")
+        if len(parts) < 2:
+            raise ValueError("Invalid GitHub URL format.")
+        owner = parts[-2]
+        repo_name = parts[-1]
+        repo_id = f"repo-{owner}-{repo_name}".lower()
+
+        # Check existing
+        existing = db.query(RepositoryModel).filter(RepositoryModel.id == repo_id).first()
+        if existing:
+            return self._repo_to_dict(existing)
+
+        # Fetch files from GitHub REST API
+        headers = {"Accept": "application/vnd.github.v3+json"}
+        token = github_token or os.getenv("GITHUB_TOKEN")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        api_url = f"https://api.github.com/repos/{owner}/{repo_name}"
+        meta_res = requests.get(api_url, headers=headers, timeout=15)
+        if meta_res.status_code != 200:
+            raise ValueError(f"GitHub repository not found or access forbidden: {meta_res.status_code}")
+        meta = meta_res.json()
+        default_branch = meta.get("default_branch", "main")
+        desc = meta.get("description", "GitHub repository")
+
+        # Fetch Git Tree recursively
+        tree_url = f"https://api.github.com/repos/{owner}/{repo_name}/git/trees/{default_branch}?recursive=1"
+        tree_res = requests.get(tree_url, headers=headers, timeout=20)
+        if tree_res.status_code != 200:
+            raise ValueError("Failed to retrieve repository git tree.")
+        tree_data = tree_res.json().get("tree", [])
+
+        ignored_dirs = {"node_modules", ".git", "dist", "build", "__pycache__", ".venv", "venv", ".idea"}
+        supported_exts = {".py", ".ts", ".tsx", ".js", ".jsx", ".java", ".json", ".md", ".sql", ".html", ".css"}
+
+        raw_files = []
+        file_idx = 0
+
+        for item in tree_data:
+            if item.get("type") == "blob":
+                path = item.get("path", "")
+                parts = path.split("/")
+                if any(p in ignored_dirs for p in parts):
+                    continue
+                _, ext = os.path.splitext(path)
+                if ext.lower() not in supported_exts:
+                    continue
+
+                # Fetch file blob content (up to 50 files to respect rate limits)
+                if file_idx >= 50:
+                    break
+
+                blob_res = requests.get(item.get("url"), headers=headers, timeout=10)
+                if blob_res.status_code == 200:
+                    b_data = blob_res.json()
+                    content = ""
+                    if b_data.get("encoding") == "base64":
+                        try:
+                            content = base64.b64decode(b_data["content"]).decode("utf-8", errors="replace")
+                        except Exception:
+                            continue
+                    else:
+                        content = b_data.get("content", "")
+
+                    file_idx += 1
+                    lang = self._detect_language(path)
+                    lines = content.split("\n")
+                    raw_files.append({
+                        "id": f"f-{repo_id}-{file_idx}",
+                        "repository_id": repo_id,
+                        "path": path,
+                        "name": os.path.basename(path),
+                        "language": lang,
+                        "size": len(content),
+                        "lines_count": len(lines),
+                        "content": content,
+                    })
+
+        if not raw_files:
+            raise ValueError("No supported source code files found in repository.")
+
+        return self._process_and_persist(
+            db=db,
+            repo_id=repo_id,
+            repo_name=repo_name,
+            owner=owner,
+            url=url,
+            default_branch=default_branch,
+            description=desc,
+            raw_files=raw_files,
+        )
+
+    def _process_and_persist(
+        self,
+        db: Session,
+        repo_id: str,
+        repo_name: str,
+        owner: str,
+        url: str,
+        description: str,
+        raw_files: List[Dict[str, Any]],
+        default_branch: str = "main",
+    ) -> Dict[str, Any]:
+        """Tree-sitter AST parse, dependency analysis, chunking, and database insertion."""
+        # 1. AST Parsing via Tree-sitter
+        parsed_results = {}
+        all_symbols = []
+
+        for f in raw_files:
+            res = self.parser.parse_file(f["path"], f["content"], f["language"])
+            if isinstance(res, list):
+                symbols = res
+                imports = []
+                for line in f["content"].split("\n"):
+                    l = line.strip()
+                    if l.startswith("from ") and "import" in l:
+                        parts = l.split()
+                        if len(parts) >= 2:
+                            imports.append(parts[1])
+                    elif l.startswith("import "):
+                        parts = l.split()
+                        if len(parts) >= 2:
+                            imports.append(parts[1].split(",")[0].strip(";\"'"))
+                parsed_results[f["path"]] = {"symbols": symbols, "imports": imports, "calls": []}
+            else:
+                symbols = res.get("symbols", [])
+                parsed_results[f["path"]] = res
+
+            for s in symbols:
+                s["file_id"] = f["id"]
+                s["repository_id"] = repo_id
+                all_symbols.append(s)
+
+        # 2. Static Dependency Analysis
+        dependencies = self.static_analyzer.analyze_dependencies(repo_id, raw_files, parsed_results)
+
+        # 3. Hierarchical Code Chunking
+        chunks = self.chunker.chunk_repository(repo_id, raw_files, all_symbols)
+
+        # 4. Dense Vector Indexing into ChromaDB
+        self.chroma_service.index_chunks(repo_id, chunks)
+
+        # 5. Language Breakdown
+        lang_counts: Dict[str, int] = {}
+        for f in raw_files:
+            lang = f["language"]
+            lang_counts[lang] = lang_counts.get(lang, 0) + 1
+
+        lang_colors = {
+            "Python": "#3572A5",
+            "TypeScript": "#3178c6",
+            "JavaScript": "#f1e05a",
+            "Java": "#b07219",
+            "JSON": "#292929",
+            "Markdown": "#083fa1",
+        }
+        languages = [
+            {
+                "name": lang,
+                "filesCount": count,
+                "percentage": round((count / len(raw_files)) * 100, 1),
+                "color": lang_colors.get(lang, "#8b949e"),
+            }
+            for lang, count in lang_counts.items()
+        ]
+
+        # 6. Database Transaction
+        # Clear any prior records for this repo_id
+        db.query(RepositoryModel).filter(RepositoryModel.id == repo_id).delete()
+        db.commit()
+
+        repo_model = RepositoryModel(
+            id=repo_id,
+            name=repo_name,
+            owner=owner,
+            url=url,
+            default_branch=default_branch,
+            description=description,
+            status="COMPLETED",
+            progress=100,
+            status_message=f"Analysis completed. {len(raw_files)} files parsed, {len(all_symbols)} symbols extracted, {len(chunks)} chunks indexed.",
+            summary=f"Project consisting of {len(raw_files)} files in {', '.join(lang_counts.keys())}. Parsed {len(all_symbols)} Tree-sitter symbols and {len(chunks)} semantic chunks.",
+            architecture_summary=f"Architecture extracted from AST import and call hierarchy graphs across {len(raw_files)} files.",
+            stats={
+                "filesCount": len(raw_files),
+                "dirsCount": len({os.path.dirname(f['path']) for f in raw_files}),
+                "classesCount": len([s for s in all_symbols if s.get("type") == "class"]),
+                "functionsCount": len([s for s in all_symbols if s.get("type") in ["function", "method"]]),
+                "dependenciesCount": len(dependencies),
+                "linesOfCode": sum(f.get("lines_count", 0) for f in raw_files),
+                "chunksCount": len(chunks),
+                "languages": languages,
+            },
+        )
+        db.add(repo_model)
+
+        for f in raw_files:
+            db.add(FileModel(
+                id=f["id"],
+                repository_id=repo_id,
+                path=f["path"],
+                language=f["language"],
+                size=f["size"],
+                lines_count=f["lines_count"],
+                content=f["content"],
+            ))
+
+        for idx, s in enumerate(all_symbols):
+            db.add(SymbolModel(
+                id=f"sym-{repo_id}-{idx + 1}",
+                repository_id=repo_id,
+                file_id=s["file_id"],
+                name=s["name"],
+                type=s.get("type", "symbol"),
+                start_line=s.get("start_line", 1),
+                end_line=s.get("end_line", 1),
+                signature=s.get("signature"),
+                docstring=s.get("docstring"),
+                detected_from=s.get("detected_from", "Tree-sitter AST"),
+            ))
+
+        for d in dependencies:
+            db.add(DependencyModel(
+                id=d["id"],
+                repository_id=repo_id,
+                source=d["source"],
+                target=d["target"],
+                relationship_type=d["relationship_type"],
+                category=d.get("category", "internal"),
+            ))
+
+        for c in chunks:
+            db.add(CodeChunkModel(
+                id=c["id"],
+                repository_id=repo_id,
+                file_id=c.get("file_id"),
+                symbol_name=c.get("symbol_name"),
+                symbol_type=c.get("symbol_type"),
+                start_line=c["start_line"],
+                end_line=c["end_line"],
+                content=c["content"],
+            ))
+
+        db.commit()
+        return self._repo_to_dict(repo_model)
+
+    def _seed_fastapi_sample(self, db: Session, sample_id: str) -> Dict[str, Any]:
+        """Seed pre-packaged FastAPI auth microservice with genuine files and AST symbols."""
+        repo_id = "repo-python-fastapi"
+        existing = db.query(RepositoryModel).filter(RepositoryModel.id == repo_id).first()
+        if existing:
+            return self._repo_to_dict(existing)
+
+        raw_files = [
+            {
+                "id": "f-py-1",
+                "repository_id": repo_id,
+                "path": "app/main.py",
+                "name": "main.py",
+                "language": "Python",
+                "size": 1420,
+                "lines_count": 45,
+                "content": '''"""FastAPI application entry point and router assembly."""
+from fastapi import FastAPI, Depends
+from app.routers import auth, users
+from app.core.config import settings
+from app.database.session import engine, Base
+
+app = FastAPI(title="Auth Microservice", version="1.0.0")
+
+@app.on_event("startup")
+async def init_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+app.include_router(users.router, prefix="/users", tags=["Users"])
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "service": "auth-service"}
+''',
+            },
+            {
+                "id": "f-py-2",
+                "repository_id": repo_id,
+                "path": "app/routers/auth.py",
+                "name": "auth.py",
+                "language": "Python",
+                "size": 2840,
+                "lines_count": 78,
+                "content": '''"""Authentication endpoints for login, token refresh, and registration."""
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.database.session import get_db
+from app.security.tokens import create_access_token, create_refresh_token
+from app.security.passwords import verify_password, get_password_hash
+from app.models.user import User
+
+router = APIRouter()
+
+@router.post("/login")
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+    """Authenticate user credentials and issue JWT tokens."""
+    user = await authenticate_user(db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
+    access_token = create_access_token(data={"sub": user.username, "roles": user.roles})
+    refresh_token = create_refresh_token(data={"sub": user.username})
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+async def authenticate_user(db: AsyncSession, username: str, password: str) -> User:
+    """Verify user existence and validate password hash."""
+    user = await User.get_by_username(db, username)
+    if not user or not verify_password(password, user.hashed_password):
+        return None
+    return user
+''',
+            },
+            {
+                "id": "f-py-3",
+                "repository_id": repo_id,
+                "path": "app/security/tokens.py",
+                "name": "tokens.py",
+                "language": "Python",
+                "size": 1820,
+                "lines_count": 52,
+                "content": '''"""JWT token issuance, verification, and decoding."""
+from datetime import datetime, timedelta
+from jose import jwt, JWTError
+from app.core.config import settings
+
+def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
+    """Generate signed HMAC-SHA256 JWT access token."""
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire, "type": "access"})
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+def create_refresh_token(data: dict) -> str:
+    """Generate refresh token with extended TTL."""
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+def decode_token(token: str) -> dict:
+    """Decode and validate JWT token claims."""
+    try:
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except JWTError:
+        return None
+''',
+            },
+            {
+                "id": "f-py-4",
+                "repository_id": repo_id,
+                "path": "app/security/passwords.py",
+                "name": "passwords.py",
+                "language": "Python",
+                "size": 950,
+                "lines_count": 28,
+                "content": '''"""Bcrypt password hashing and validation."""
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify raw password against bcrypt salted hash."""
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    """Generate bcrypt hash for storage."""
+    return pwd_context.hash(password)
+''',
+            },
+            {
+                "id": "f-py-5",
+                "repository_id": repo_id,
+                "path": "app/database/session.py",
+                "name": "session.py",
+                "language": "Python",
+                "size": 1100,
+                "lines_count": 34,
+                "content": '''"""Async database engine and session factory."""
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker, declarative_base
+from app.core.config import settings
+
+engine = create_async_engine(settings.DATABASE_URL, echo=False)
+AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+Base = declarative_base()
+
+async def get_db():
+    """Dependency for injecting async database session into endpoints."""
+    async with AsyncSessionLocal() as session:
+        yield session
+''',
+            },
+            {
+                "id": "f-py-6",
+                "repository_id": repo_id,
+                "path": "app/models/user.py",
+                "name": "user.py",
+                "language": "Python",
+                "size": 1640,
+                "lines_count": 48,
+                "content": '''"""SQLAlchemy User entity model with role definitions."""
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from app.database.session import Base
+
+class User(Base):
+    """User account entity model."""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    email = Column(String(100), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True)
+    roles = Column(String(100), default="user")
+
+    @classmethod
+    async def get_by_username(cls, db, username: str):
+        from sqlalchemy import select
+        res = await db.execute(select(cls).where(cls.username == username))
+        return res.scalar_one_or_none()
+''',
+            },
+        ]
+
+        return self._process_and_persist(
+            db=db,
+            repo_id=repo_id,
+            repo_name="fastapi-jwt-auth-service",
+            owner="code-archaeologist",
+            url="https://github.com/code-archaeologist/fastapi-jwt-auth-service",
+            default_branch="main",
+            description="Production-ready FastAPI authentication and user authorization microservice featuring JWT, OAuth2 scopes, SQLAlchemy ORM, and bcrypt password hashing.",
+            raw_files=raw_files,
+        )
+
+    def _detect_language(self, path: str) -> str:
+        ext = os.path.splitext(path)[1].lower()
+        mapping = {
+            ".py": "Python",
+            ".ts": "TypeScript",
+            ".tsx": "TypeScript",
+            ".js": "JavaScript",
+            ".jsx": "JavaScript",
+            ".java": "Java",
+            ".json": "JSON",
+            ".md": "Markdown",
+            ".sql": "SQL",
+        }
+        return mapping.get(ext, "Unknown")
+
+    def _repo_to_dict(self, repo: RepositoryModel) -> Dict[str, Any]:
+        return {
+            "id": repo.id,
+            "name": repo.name,
+            "owner": repo.owner,
+            "url": repo.url,
+            "defaultBranch": repo.default_branch,
+            "description": repo.description,
+            "status": repo.status,
+            "progress": repo.progress,
+            "statusMessage": repo.status_message,
+            "summary": repo.summary,
+            "architectureSummary": repo.architecture_summary,
+            "stats": repo.stats or {},
+            "createdAt": repo.created_at.isoformat() if repo.created_at else None,
+            "updatedAt": repo.updated_at.isoformat() if repo.updated_at else None,
+        }
