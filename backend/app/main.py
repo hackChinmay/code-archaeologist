@@ -2,6 +2,14 @@
 Official backend providing Tree-sitter AST parsing, ChromaDB vector indexing,
 LangChain RAG, and Google Gemini code intelligence.
 """
+import sys
+from pathlib import Path
+
+# Ensure project root is in sys.path so 'backend.app...' imports work regardless of execution directory
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import os
 import time
 import logging
@@ -11,7 +19,7 @@ from fastapi import FastAPI, HTTPException, Depends, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from backend.app.database.mysql_db import get_db, SessionLocal
+from backend.app.database.mysql_db import get_db, SessionLocal, engine
 from backend.app.rag.chroma_service import ChromaService
 from backend.app.rag.rag_service import RAGService
 from backend.app.services.repository_service import RepositoryService
@@ -33,10 +41,25 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# CORS Configuration
+# Reads allowed origins from environment variable ALLOWED_ORIGINS or FRONTEND_URL.
+# Multiple comma-separated origins can be specified for staging and production domains.
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS") or os.getenv("FRONTEND_URL")
+if allowed_origins_env:
+    allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+else:
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+
+allow_all_origins = "*" in allowed_origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=allowed_origins,
+    allow_credentials=not allow_all_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -58,23 +81,49 @@ def startup_event():
         if not repos:
             logger.info("Database empty on startup; seeding sample repository 'repo-python-fastapi'...")
             repo_service.analyze_repository(db=db, sample_id="repo-python-fastapi")
-            logger.info("Sample repository successfully indexed into ChromaDB and SQLite/MySQL.")
+            logger.info("Sample repository successfully indexed into ChromaDB and database.")
     except Exception as exc:
         logger.error(f"Startup initialization error: {exc}")
     finally:
         db.close()
 
 
+@app.get("/")
+def root():
+    """Root endpoint providing service metadata and discovery links."""
+    return {
+        "service": "Code Archaeologist / RepoMind API",
+        "status": "healthy",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/health",
+        "endpoints": {
+            "repositories": "/api/repositories",
+            "analyze": "/api/repositories/analyze",
+        },
+    }
+
+
 @app.get("/health")
 def health():
     """System health check reporting active service components."""
+    db_status = "connected"
+    try:
+        with engine.connect() as conn:
+            pass
+    except Exception:
+        db_status = "degraded"
+
+    chroma_status = "available" if (chroma_service and chroma_service.client) else "unavailable"
+    gemini_status = bool(os.getenv("GEMINI_API_KEY", "").strip())
+
     return {
-        "status": "healthy",
+        "status": "healthy" if db_status == "connected" else "degraded",
         "service": "repomind-fastapi",
-        "database": "SQLAlchemy (SQLite / MySQL)",
-        "vector_store": "ChromaDB",
+        "database": db_status,
+        "vector_store": chroma_status,
         "parser": "Tree-sitter AST",
-        "rag": "LangChain + Google Gemini 3.8 Flash",
+        "gemini_configured": gemini_status,
         "timestamp": time.time(),
     }
 
@@ -97,9 +146,9 @@ def analyze_repository(req: AnalyzeRequest, db: Session = Depends(get_db)):
     """
     try:
         url = req.url
-        sample_id = req.sample_id or getattr(req, "sampleId", None)
-        github_token = req.github_token or getattr(req, "githubToken", None)
-        local_files = getattr(req, "local_files", None) or getattr(req, "localFiles", None)
+        sample_id = req.sample_id or req.sampleId
+        github_token = req.github_token or req.githubToken
+        local_files = req.local_files or req.localFiles
 
         repo = repo_service.analyze_repository(
             db=db,
@@ -153,6 +202,12 @@ def get_repository_file(repo_id: str, file_id: str, db: Session = Depends(get_db
     return f
 
 
+@app.get("/api/repositories/{repo_id}/symbols")
+def get_repository_symbols(repo_id: str, db: Session = Depends(get_db)):
+    """Fetch all extracted AST symbols across the repository."""
+    return repo_service.get_symbols(repo_id, db)
+
+
 @app.get("/api/repositories/{repo_id}/architecture")
 def get_repository_architecture(repo_id: str, db: Session = Depends(get_db)):
     """Generate Directed Acyclic Graph (DAG) for ArchitectureView."""
@@ -176,15 +231,16 @@ def semantic_search(repo_id: str, req: SearchRequest, db: Session = Depends(get_
     if not query:
         raise HTTPException(status_code=400, detail="Query parameter required")
 
-    chunks = chroma_service.similarity_search(repo_id, query, top_k=req.top_k)
+    top_k = req.top_k or req.topK or 5
+    chunks = chroma_service.similarity_search(repo_id, query, top_k=top_k)
     return {
         "query": query,
         "totalResults": len(chunks),
         "results": [
             {
                 "chunk": c,
-                "score": c.get("similarity_score", 0.8),
-                "explanation": f"Matched in {c['symbol_name']} ({c['file_path']})",
+                "score": c.get("similarityScore") or c.get("similarity_score", 0.8),
+                "explanation": f"Matched in {c.get('symbolName') or c.get('symbol_name', 'code')} ({c.get('filePath') or c.get('file_path', '')})",
             }
             for c in chunks
         ],
@@ -194,7 +250,7 @@ def semantic_search(repo_id: str, req: SearchRequest, db: Session = Depends(get_
 @app.post("/api/repositories/{repo_id}/ask")
 def ask_question(repo_id: str, req: AskRequest, db: Session = Depends(get_db)):
     """
-    Execute LangChain RAG pipeline with Google Gemini 3.8 Flash.
+    Execute LangChain RAG pipeline with Google Gemini.
     Returns grounded answer accompanied by verifiable evidence cards.
     """
     repo = repo_service.get_repository(repo_id, db)
@@ -211,7 +267,7 @@ def generate_documentation(repo_id: str, req: DocumentationRequest, db: Session 
     """Generate technical documentation using code chunks and Gemini."""
     repo = repo_service.get_repository(repo_id, db)
     repo_name = repo["name"] if repo else repo_id
-    target = req.target_path or req.symbol_name
+    target = req.target_path or req.targetPath or req.symbol_name or req.symbolName
 
     return doc_service.generate_documentation(
         repository_id=repo_id,
@@ -244,3 +300,11 @@ def measure_benchmark(repo_id: str, payload: Dict[str, Any], db: Session = Depen
     query = payload.get("customQuery") or payload.get("query") or "Where is authentication handled?"
     expected = payload.get("expectedFile")
     return eval_service.measure_single_query(repo_id, query, expected)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    host = os.environ.get("HOST", "0.0.0.0")
+    port = int(os.environ.get("PORT", 8000))
+    logger.info(f"Starting server on {host}:{port}")
+    uvicorn.run("backend.app.main:app", host=host, port=port, reload=False)

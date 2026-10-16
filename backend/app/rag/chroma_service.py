@@ -16,17 +16,36 @@ except Exception as exc:
 class ChromaService:
     """Manages ChromaDB collections, vector embeddings, and similarity queries."""
 
-    def __init__(self, persist_directory: str = "./chroma_data"):
-        self.persist_directory = persist_directory
+    def __init__(self, persist_directory: Optional[str] = None):
+        persist_dir = persist_directory or os.getenv("CHROMA_PERSIST_DIR") or os.getenv("CHROMA_DATA_DIR") or "./chroma_data"
+        self.persist_directory = persist_dir
         self.client = None
         if CHROMA_AVAILABLE:
             try:
                 host = os.getenv("CHROMA_HOST")
                 port = os.getenv("CHROMA_PORT")
-                if host and port:
-                    self.client = chromadb.HttpClient(host=host, port=int(port))
-                    logger.info(f"Connected to remote ChromaDB at {host}:{port}")
+                ssl_env = os.getenv("CHROMA_SSL", "false").lower() in ("true", "1", "yes")
+                auth_token = os.getenv("CHROMA_AUTH_TOKEN") or os.getenv("CHROMA_API_KEY")
+                headers = {"Authorization": f"Bearer {auth_token}"} if auth_token else None
+
+                if host:
+                    clean_host = host.strip()
+                    if clean_host.startswith("https://"):
+                        clean_host = clean_host.replace("https://", "")
+                        ssl_env = True
+                    elif clean_host.startswith("http://"):
+                        clean_host = clean_host.replace("http://", "")
+
+                    target_port = int(port) if port else (443 if ssl_env else 8000)
+                    self.client = chromadb.HttpClient(
+                        host=clean_host,
+                        port=target_port,
+                        ssl=ssl_env,
+                        headers=headers,
+                    )
+                    logger.info(f"Connected to remote ChromaDB at {clean_host}:{target_port} (ssl={ssl_env})")
                 else:
+                    os.makedirs(self.persist_directory, exist_ok=True)
                     self.client = chromadb.PersistentClient(path=self.persist_directory)
                     logger.info(f"ChromaDB persistent client initialized at {self.persist_directory}")
             except Exception as e:
@@ -60,19 +79,19 @@ class ChromaService:
 
         ids = [c["id"] for c in chunks]
         docs = [
-            f"{c.get('symbol_name', '')} in {c['file_path']} ({c.get('language', '')}):\n{c['content']}"
+            f"{c.get('symbol_name') or c.get('symbolName', '')} in {c.get('file_path') or c.get('filePath', '')} ({c.get('language', '')}):\n{c.get('content', '')}"
             for c in chunks
         ]
         metadatas = [
             {
                 "repository_id": repository_id,
-                "file_path": c["file_path"],
-                "file_id": str(c.get("file_id", "")),
-                "symbol_name": str(c.get("symbol_name", "")),
-                "symbol_type": str(c.get("symbol_type", "")),
+                "file_path": c.get("file_path") or c.get("filePath", ""),
+                "file_id": str(c.get("file_id") or c.get("fileId", "")),
+                "symbol_name": str(c.get("symbol_name") or c.get("symbolName", "")),
+                "symbol_type": str(c.get("symbol_type") or c.get("symbolType", "")),
                 "language": str(c.get("language", "")),
-                "start_line": int(c.get("start_line", 1)),
-                "end_line": int(c.get("end_line", 1)),
+                "start_line": int(c.get("start_line") or c.get("startLine", 1)),
+                "end_line": int(c.get("end_line") or c.get("endLine", 1)),
             }
             for c in chunks
         ]
@@ -119,16 +138,31 @@ class ChromaService:
                     content_parts = doc.split(":\n", 1)
                     raw_content = content_parts[1] if len(content_parts) > 1 else doc
 
+                    fp = meta.get("file_path", "")
+                    sym_name = meta.get("symbol_name", "")
+                    sym_type = meta.get("symbol_type", "")
+                    start_l = int(meta.get("start_line", 1))
+                    end_l = int(meta.get("end_line", 1))
+                    lang = meta.get("language", "")
+                    sim_score = round(max(0.0, 1.0 - (distance / 2.0)), 3)
+
                     retrieved.append({
                         "id": chunk_id,
-                        "file_path": meta.get("file_path", ""),
-                        "symbol_name": meta.get("symbol_name", ""),
-                        "symbol_type": meta.get("symbol_type", ""),
-                        "language": meta.get("language", ""),
-                        "start_line": meta.get("start_line", 1),
-                        "end_line": meta.get("end_line", 1),
+                        # Both snake_case and camelCase for seamless frontend & backend compatibility
+                        "file_path": fp,
+                        "filePath": fp,
+                        "symbol_name": sym_name,
+                        "symbolName": sym_name,
+                        "symbol_type": sym_type,
+                        "symbolType": sym_type,
+                        "language": lang,
+                        "start_line": start_l,
+                        "startLine": start_l,
+                        "end_line": end_l,
+                        "endLine": end_l,
                         "content": raw_content,
-                        "similarity_score": round(max(0.0, 1.0 - (distance / 2.0)), 3),
+                        "similarity_score": sim_score,
+                        "similarityScore": sim_score,
                         "distance": round(distance, 4),
                     })
 

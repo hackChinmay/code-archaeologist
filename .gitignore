@@ -6,16 +6,19 @@ coverage/
 *.log
 .env*
 !.env.example
+.vercel/
 
 # Virtual environments
 venv/
 .venv/
 backend/venv/
+env/
 
 # Python cache
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
 
 # Databases & Vector store
 *.db

@@ -42,7 +42,7 @@ class RAGService:
     def __init__(self, chroma_service: ChromaService):
         self.chroma_service = chroma_service
         self.api_key = os.getenv("GEMINI_API_KEY", "").strip()
-        self.model_name = "gemini-3.8-flash"
+        self.model_name = "gemini-2.5-flash"
 
     def ask(self, repository_id: str, repo_name: str, question: str) -> Dict[str, Any]:
         """
@@ -55,15 +55,20 @@ class RAGService:
         chunks = self.chroma_service.similarity_search(repository_id, question, top_k=5)
 
         if not chunks:
+            duration_ms = round((time.time() - start_time) * 1000, 1)
             return {
                 "question": question,
                 "answer": f"I could not find enough evidence in the analyzed repository ({repo_name}) to answer this confidently. No relevant code chunks matched your query terms.",
                 "grounded": False,
+                "confidenceStatus": "Insufficient repository evidence",
                 "confidence_status": "Insufficient repository evidence",
+                "retrievedChunksCount": 0,
                 "retrieved_chunks_count": 0,
+                "relevantFiles": [],
                 "relevant_files": [],
                 "evidence": [],
-                "duration_ms": round((time.time() - start_time) * 1000, 1),
+                "durationMs": duration_ms,
+                "duration_ms": duration_ms,
             }
 
         # 2. Format Context & Extract Evidence
@@ -84,15 +89,22 @@ class RAGService:
             or "insufficient repository evidence" in answer_text.lower()
         )
 
+        duration_ms = round((time.time() - start_time) * 1000, 1)
+        conf_status = "Insufficient repository evidence" if is_insufficient else "Supported by repository evidence"
+
         return {
             "question": question,
             "answer": answer_text,
             "grounded": not is_insufficient,
-            "confidence_status": "Insufficient repository evidence" if is_insufficient else "Supported by repository evidence",
+            "confidenceStatus": conf_status,
+            "confidence_status": conf_status,
+            "retrievedChunksCount": len(chunks),
             "retrieved_chunks_count": len(chunks),
+            "relevantFiles": relevant_files,
             "relevant_files": relevant_files,
             "evidence": evidence_list,
-            "duration_ms": round((time.time() - start_time) * 1000, 1),
+            "durationMs": duration_ms,
+            "duration_ms": duration_ms,
         }
 
     def _format_context_and_evidence(
@@ -104,13 +116,14 @@ class RAGService:
         seen_files = set()
 
         for idx, c in enumerate(chunks):
-            fp = c["file_path"]
-            seen_files.add(fp)
-            start_l = c["start_line"]
-            end_l = c["end_line"]
-            sym = c.get("symbol_name", "code block")
-            sym_type = c.get("symbol_type", "block")
-            content = c["content"]
+            fp = c.get("file_path") or c.get("filePath", "")
+            if fp:
+                seen_files.add(fp)
+            start_l = int(c.get("start_line") or c.get("startLine", 1))
+            end_l = int(c.get("end_line") or c.get("endLine", 1))
+            sym = c.get("symbol_name") or c.get("symbolName", "code block")
+            sym_type = c.get("symbol_type") or c.get("symbolType", "block")
+            content = c.get("content", "")
 
             context_parts.append(
                 f"--- EVIDENCE #{idx + 1} ---\n"
@@ -123,25 +136,34 @@ class RAGService:
 
             snippet_preview = content[:400] + ("\n// ..." if len(content) > 400 else "")
             evidence_items.append({
+                # Dual naming for robust consumption
+                "filePath": fp,
                 "file_path": fp,
+                "symbolName": sym,
                 "symbol_name": sym,
+                "symbolType": sym_type,
                 "symbol_type": sym_type,
+                "startLine": start_l,
                 "start_line": start_l,
+                "endLine": end_l,
                 "end_line": end_l,
                 "snippet": snippet_preview,
+                "retrievalReason": f"Semantic match in {sym} ({sym_type}) on lines {start_l}–{end_l}",
                 "retrieval_reason": f"Semantic match in {sym} ({sym_type}) on lines {start_l}–{end_l}",
             })
 
         return "\n".join(context_parts), evidence_items, list(seen_files)
 
     def _call_gemini(self, prompt: str, repo_name: str) -> str:
-        """Call Google Gemini 3.8 Flash with strict temperature control."""
-        if not self.api_key:
+        """Call Google Gemini with strict temperature control."""
+        api_key = self.api_key or os.getenv("GEMINI_API_KEY", "").strip()
+        if not api_key:
             return self._extractive_fallback(prompt)
 
         try:
             from google import genai
-            client = genai.Client(api_key=self.api_key)
+            client = genai.Client(api_key=api_key)
+            # Try current fast model with fallback to available model
             response = client.models.generateContent(
                 model=self.model_name,
                 contents=prompt,
@@ -151,8 +173,19 @@ class RAGService:
             )
             return response.text or "No text generated by model."
         except Exception as err:
-            logger.warning(f"Gemini API error ({err}); using extractive synthesis fallback.")
-            return self._extractive_fallback(prompt)
+            logger.warning(f"Gemini API error ({err}); trying gemini-1.5-flash fallback.")
+            try:
+                from google import genai
+                client = genai.Client(api_key=api_key)
+                response = client.models.generateContent(
+                    model="gemini-1.5-flash",
+                    contents=prompt,
+                    config={"temperature": 0.1},
+                )
+                return response.text or "No text generated by model."
+            except Exception as e2:
+                logger.warning(f"Fallback model also failed ({e2}); using extractive synthesis.")
+                return self._extractive_fallback(prompt)
 
     def _extractive_fallback(self, prompt: str) -> str:
         """Factual extractive synthesis when API key is unconfigured or rate-limited."""
@@ -161,5 +194,5 @@ class RAGService:
             "Based on the retrieved repository source code evidence:\n\n"
             "- The relevant symbols and implementations were retrieved directly from the codebase.\n"
             "- Review the cited files and line ranges in the evidence cards below for complete implementation details.\n\n"
-            "*Note: To enable full Gemini generative answers, ensure `GEMINI_API_KEY` is configured in `.env`.*"
+            "*Note: To enable full Gemini generative answers, ensure `GEMINI_API_KEY` is configured in backend environment variables.*"
         )

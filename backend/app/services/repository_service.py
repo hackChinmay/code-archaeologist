@@ -94,7 +94,22 @@ class RepositoryService:
         if not f:
             return None
         symbols = db.query(SymbolModel).filter(SymbolModel.file_id == f.id).all()
-        return {
+        sym_list = [
+            {
+                "id": s.id,
+                "fileId": s.file_id,
+                "filePath": f.path,
+                "name": s.name,
+                "type": s.type,
+                "startLine": s.start_line,
+                "endLine": s.end_line,
+                "signature": s.signature,
+                "docstring": s.docstring,
+                "detectedFrom": s.detected_from or "Tree-sitter AST",
+            }
+            for s in symbols
+        ]
+        file_dict = {
             "id": f.id,
             "repositoryId": f.repository_id,
             "path": f.path,
@@ -104,18 +119,37 @@ class RepositoryService:
             "linesCount": f.lines_count,
             "content": f.content,
             "symbolsCount": len(symbols),
-            "symbols": [
-                {
-                    "id": s.id,
-                    "name": s.name,
-                    "type": s.type,
-                    "startLine": s.start_line,
-                    "endLine": s.end_line,
-                    "signature": s.signature,
-                }
-                for s in symbols
-            ],
+            "symbols": sym_list,
         }
+        return {
+            "file": file_dict,
+            "symbols": sym_list,
+            **file_dict,
+        }
+
+    def get_symbols(self, repo_id: str, db: Session) -> List[Dict[str, Any]]:
+        """Fetch all AST symbols extracted for repository."""
+        symbols = (
+            db.query(SymbolModel, FileModel.path)
+            .join(FileModel, SymbolModel.file_id == FileModel.id)
+            .filter(SymbolModel.repository_id == repo_id)
+            .all()
+        )
+        return [
+            {
+                "id": s.id,
+                "fileId": s.file_id,
+                "filePath": file_path,
+                "name": s.name,
+                "type": s.type,
+                "startLine": s.start_line,
+                "endLine": s.end_line,
+                "signature": s.signature,
+                "docstring": s.docstring,
+                "detectedFrom": s.detected_from or "Tree-sitter AST",
+            }
+            for s, file_path in symbols
+        ]
 
     def get_dependencies(self, repo_id: str, db: Session) -> List[Dict[str, Any]]:
         """Fetch extracted dependency graph edges."""
@@ -193,9 +227,9 @@ class RepositoryService:
         Ingest, parse via Tree-sitter, analyze static dependencies, chunk, and index into ChromaDB.
         """
         # 1. Check Sample Repositories
-        if sample_id or (url and "fastapi-jwt-auth-service" in url):
-            target_sample = sample_id or "repo-python-fastapi"
-            return self._seed_fastapi_sample(db, target_sample)
+        if sample_id or (url and any(s in (url or "") for s in ["fastapi-jwt-auth-service", "repomind-core-engine", "spring-boot-inventory-service"])):
+            target_sample = sample_id or ("repo-ts-code-archaeologist" if "repomind-core" in url else ("repo-java-spring-microservice" if "spring" in url else "repo-python-fastapi"))
+            return self._seed_sample(db, target_sample)
 
         # 2. Local Files Upload
         if local_files:
@@ -208,6 +242,13 @@ class RepositoryService:
         return self._ingest_github_repository(db, url, github_token)
 
     def _ingest_local_files(self, db: Session, local_files: List[Dict[str, Any]]) -> Dict[str, Any]:
+        if not local_files:
+            raise ValueError("No valid files provided for local upload.")
+
+        # Limit to 50 files to respect memory limits on free tiers
+        if len(local_files) > 50:
+            local_files = local_files[:50]
+
         repo_id = f"repo-local-{int(time.time())}"
         repo_name = "local-project-upload"
 
@@ -216,6 +257,9 @@ class RepositoryService:
         for idx, lf in enumerate(local_files):
             path = lf.get("path", f"file_{idx + 1}.txt")
             content = lf.get("content", "")
+            # Truncate oversized individual files to avoid OOM
+            if len(content) > 500000:
+                content = content[:500000] + "\n// [Truncated: Exceeded 500KB limit]"
             lang = self._detect_language(path)
             lines = content.split("\n")
             raw_files.append({
@@ -681,6 +725,433 @@ class User(Base):
             url="https://github.com/code-archaeologist/fastapi-jwt-auth-service",
             default_branch="main",
             description="Production-ready FastAPI authentication and user authorization microservice featuring JWT, OAuth2 scopes, SQLAlchemy ORM, and bcrypt password hashing.",
+            raw_files=raw_files,
+        )
+
+    def _seed_sample(self, db: Session, sample_id: str) -> Dict[str, Any]:
+        """Seed sample repository based on requested ID."""
+        if sample_id == "repo-ts-code-archaeologist" or "repomind-core" in sample_id:
+            return self._seed_ts_sample(db)
+        elif sample_id == "repo-java-spring-microservice" or "spring" in sample_id or "inventory" in sample_id:
+            return self._seed_java_sample(db)
+        else:
+            return self._seed_fastapi_sample(db, sample_id)
+
+    def _seed_ts_sample(self, db: Session) -> Dict[str, Any]:
+        """Seed TypeScript code analysis engine sample."""
+        repo_id = "repo-ts-code-archaeologist"
+        existing = db.query(RepositoryModel).filter(RepositoryModel.id == repo_id).first()
+        if existing:
+            return self._repo_to_dict(existing)
+
+        raw_files = [
+            {
+                "id": "f-ts-1",
+                "repository_id": repo_id,
+                "path": "src/analyzers/ast-parser.ts",
+                "name": "ast-parser.ts",
+                "language": "TypeScript",
+                "size": 2400,
+                "lines_count": 68,
+                "content": '''import Parser from 'web-tree-sitter';
+import { SymbolItem, SourceLocation } from '../types';
+
+export class ASTParser {
+  private parser: Parser | null = null;
+  private language: string;
+
+  constructor(language: string) {
+    this.language = language;
+  }
+
+  public async initialize(): Promise<void> {
+    await Parser.init();
+    this.parser = new Parser();
+  }
+
+  public parseSourceFile(code: string, filePath: string): SymbolItem[] {
+    if (!this.parser) {
+      throw new Error('Parser not initialized. Call initialize() first.');
+    }
+    const tree = this.parser.parse(code);
+    return this.extractSymbols(tree.rootNode, filePath);
+  }
+
+  private extractSymbols(rootNode: Parser.SyntaxNode, filePath: string): SymbolItem[] {
+    const symbols: SymbolItem[] = [];
+    this.traverseAST(rootNode, (node) => {
+      if (node.type === 'class_declaration' || node.type === 'class') {
+        symbols.push({
+          id: `${filePath}-${node.startPosition.row}`,
+          name: node.childForFieldName('name')?.text || 'AnonymousClass',
+          type: 'class',
+          startLine: node.startPosition.row + 1,
+          endLine: node.endPosition.row + 1,
+          filePath,
+        });
+      } else if (node.type === 'function_declaration' || node.type === 'method_definition') {
+        symbols.push({
+          id: `${filePath}-${node.startPosition.row}`,
+          name: node.childForFieldName('name')?.text || 'anonymousFunction',
+          type: node.type === 'method_definition' ? 'method' : 'function',
+          startLine: node.startPosition.row + 1,
+          endLine: node.endPosition.row + 1,
+          filePath,
+        });
+      }
+    });
+    return symbols;
+  }
+
+  private traverseAST(node: Parser.SyntaxNode, callback: (n: Parser.SyntaxNode) => void): void {
+    callback(node);
+    for (let i = 0; i < node.namedChildCount; i++) {
+      const child = node.namedChild(i);
+      if (child) this.traverseAST(child, callback);
+    }
+  }
+}
+''',
+            },
+            {
+                "id": "f-ts-2",
+                "repository_id": repo_id,
+                "path": "src/analyzers/chunker.ts",
+                "name": "chunker.ts",
+                "language": "TypeScript",
+                "size": 1950,
+                "lines_count": 52,
+                "content": '''import { SymbolItem, CodeChunk } from '../types';
+
+export class SemanticChunker {
+  private maxChunkLines: number;
+
+  constructor(maxChunkLines: number = 80) {
+    this.maxChunkLines = maxChunkLines;
+  }
+
+  public chunkFile(filePath: string, content: string, symbols: SymbolItem[], language: string): CodeChunk[] {
+    const lines = content.split('\\n');
+    const chunks: CodeChunk[] = [];
+
+    for (const sym of symbols) {
+      if (sym.type === 'class' || sym.type === 'function' || sym.type === 'method') {
+        const symbolLines = lines.slice(sym.startLine - 1, sym.endLine);
+        chunks.push({
+          id: `chk-${filePath}-${sym.name}-${sym.startLine}`,
+          repositoryId: 'repo-ts-code-archaeologist',
+          filePath,
+          language,
+          symbolType: sym.type,
+          symbolName: sym.name,
+          startLine: sym.startLine,
+          endLine: sym.endLine,
+          content: symbolLines.join('\\n'),
+        });
+      }
+    }
+    return chunks;
+  }
+}
+''',
+            },
+            {
+                "id": "f-ts-3",
+                "repository_id": repo_id,
+                "path": "src/vector/chroma-client.ts",
+                "name": "chroma-client.ts",
+                "language": "TypeScript",
+                "size": 2200,
+                "lines_count": 58,
+                "content": '''import { ChromaClient, Collection } from 'chromadb';
+import { CodeChunk } from '../types';
+
+export class ChromaVectorStore {
+  private client: ChromaClient;
+  private collection: Collection | null = null;
+
+  constructor(host: string = 'http://localhost:8000') {
+    this.client = new ChromaClient({ path: host });
+  }
+
+  public async initializeCollection(name: string): Promise<void> {
+    this.collection = await this.client.getOrCreateCollection({ name });
+  }
+
+  public async insertChunks(chunks: CodeChunk[]): Promise<number> {
+    if (!this.collection) throw new Error('Vector collection not initialized');
+    await this.collection.add({
+      ids: chunks.map(c => c.id),
+      documents: chunks.map(c => c.content),
+      metadatas: chunks.map(c => ({ filePath: c.filePath, symbolName: c.symbolName })),
+    });
+    return chunks.length;
+  }
+}
+''',
+            },
+            {
+                "id": "f-ts-4",
+                "repository_id": repo_id,
+                "path": "src/rag/gemini-orchestrator.ts",
+                "name": "gemini-orchestrator.ts",
+                "language": "TypeScript",
+                "size": 2500,
+                "lines_count": 65,
+                "content": '''import { GoogleGenAI } from '@google/genai';
+import { CodeChunk, RAGResponse } from '../types';
+
+export class GeminiRAGOrchestrator {
+  private ai: GoogleGenAI;
+
+  constructor(apiKey: string) {
+    this.ai = new GoogleGenAI({ apiKey });
+  }
+
+  public async generateAnswer(question: string, contextChunks: CodeChunk[]): Promise<RAGResponse> {
+    const context = contextChunks.map(c => `File: ${c.filePath}\\n${c.content}`).join('\\n\\n');
+    const prompt = `Context:\\n${context}\\n\\nQuestion: ${question}\\nAnswer strictly with citations:`;
+    const response = await this.ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+    return {
+      question,
+      answer: response.text || '',
+      grounded: true,
+      confidenceStatus: 'Supported by repository evidence',
+      retrievedChunksCount: contextChunks.length,
+      relevantFiles: Array.from(new Set(contextChunks.map(c => c.filePath))),
+      evidence: [],
+      durationMs: 420.5,
+    };
+  }
+}
+''',
+            },
+            {
+                "id": "f-ts-5",
+                "repository_id": repo_id,
+                "path": "src/index.ts",
+                "name": "index.ts",
+                "language": "TypeScript",
+                "size": 1800,
+                "lines_count": 48,
+                "content": '''import { ASTParser } from './analyzers/ast-parser';
+import { SemanticChunker } from './analyzers/chunker';
+import { ChromaVectorStore } from './vector/chroma-client';
+import { GeminiRAGOrchestrator } from './rag/gemini-orchestrator';
+
+export async function runAnalysisPipeline(sourceFiles: { path: string; content: string }[]) {
+  const parser = new ASTParser('typescript');
+  await parser.initialize();
+  const chunker = new SemanticChunker();
+  const vectorStore = new ChromaVectorStore();
+  await vectorStore.initializeCollection('repomind_ts');
+
+  console.log(`Starting analysis for ${sourceFiles.length} files...`);
+}
+''',
+            },
+        ]
+
+        return self._process_and_persist(
+            db=db,
+            repo_id=repo_id,
+            repo_name="repomind-core-engine",
+            owner="code-archaeologist",
+            url="https://github.com/code-archaeologist/repomind-core-engine",
+            default_branch="main",
+            description="Core TypeScript engine for AST parsing, code chunking, ChromaDB vector indexing, and Gemini-powered retrieval augmented generation.",
+            raw_files=raw_files,
+        )
+
+    def _seed_java_sample(self, db: Session) -> Dict[str, Any]:
+        """Seed Spring Boot Java microservice sample."""
+        repo_id = "repo-java-spring-microservice"
+        existing = db.query(RepositoryModel).filter(RepositoryModel.id == repo_id).first()
+        if existing:
+            return self._repo_to_dict(existing)
+
+        raw_files = [
+            {
+                "id": "f-jv-1",
+                "repository_id": repo_id,
+                "path": "src/main/java/com/repomind/inventory/InventoryApplication.java",
+                "name": "InventoryApplication.java",
+                "language": "Java",
+                "size": 1100,
+                "lines_count": 30,
+                "content": '''package com.repomind.inventory;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class InventoryApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(InventoryApplication.class, args);
+    }
+}
+''',
+            },
+            {
+                "id": "f-jv-2",
+                "repository_id": repo_id,
+                "path": "src/main/java/com/repomind/inventory/controller/ProductController.java",
+                "name": "ProductController.java",
+                "language": "Java",
+                "size": 2400,
+                "lines_count": 65,
+                "content": '''package com.repomind.inventory.controller;
+
+import com.repomind.inventory.model.Product;
+import com.repomind.inventory.service.ProductService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/products")
+public class ProductController {
+    private final ProductService productService;
+
+    public ProductController(ProductService productService) {
+        this.productService = productService;
+    }
+
+    @GetMapping
+    public List<Product> getAllProducts() {
+        return productService.findAll();
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Product> getProductById(@PathVariable Long id) {
+        return productService.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    public Product createProduct(@RequestBody Product product) {
+        return productService.save(product);
+    }
+}
+''',
+            },
+            {
+                "id": "f-jv-3",
+                "repository_id": repo_id,
+                "path": "src/main/java/com/repomind/inventory/service/ProductService.java",
+                "name": "ProductService.java",
+                "language": "Java",
+                "size": 2100,
+                "lines_count": 55,
+                "content": '''package com.repomind.inventory.service;
+
+import com.repomind.inventory.model.Product;
+import com.repomind.inventory.repository.ProductRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+@Transactional
+public class ProductService {
+    private final ProductRepository productRepository;
+
+    public ProductService(ProductRepository productRepository) {
+        this.productRepository = productRepository;
+    }
+
+    public List<Product> findAll() {
+        return productRepository.findAll();
+    }
+
+    public Optional<Product> findById(Long id) {
+        return productRepository.findById(id);
+    }
+
+    public Product save(Product product) {
+        return productRepository.save(product);
+    }
+}
+''',
+            },
+            {
+                "id": "f-jv-4",
+                "repository_id": repo_id,
+                "path": "src/main/java/com/repomind/inventory/repository/ProductRepository.java",
+                "name": "ProductRepository.java",
+                "language": "Java",
+                "size": 950,
+                "lines_count": 25,
+                "content": '''package com.repomind.inventory.repository;
+
+import com.repomind.inventory.model.Product;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.Optional;
+
+@Repository
+public interface ProductRepository extends JpaRepository<Product, Long> {
+    Optional<Product> findBySku(String sku);
+}
+''',
+            },
+            {
+                "id": "f-jv-5",
+                "repository_id": repo_id,
+                "path": "src/main/java/com/repomind/inventory/model/Product.java",
+                "name": "Product.java",
+                "language": "Java",
+                "size": 1800,
+                "lines_count": 48,
+                "content": '''package com.repomind.inventory.model;
+
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+
+@Entity
+@Table(name = "products")
+public class Product {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String sku;
+
+    @Column(nullable = false)
+    private String name;
+
+    private BigDecimal price;
+    private Integer quantity;
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getSku() { return sku; }
+    public void setSku(String sku) { this.sku = sku; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
+}
+''',
+            },
+        ]
+
+        return self._process_and_persist(
+            db=db,
+            repo_id=repo_id,
+            repo_name="spring-boot-inventory-service",
+            owner="code-archaeologist",
+            url="https://github.com/code-archaeologist/spring-boot-inventory-service",
+            default_branch="main",
+            description="Spring Boot microservice with REST controllers, transactional services, and Spring Data JPA repositories.",
             raw_files=raw_files,
         )
 
