@@ -32,6 +32,9 @@ from backend.app.schemas.pydantic_schemas import (
     DocumentationRequest,
 )
 
+import gc
+from fastapi.responses import JSONResponse
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("repomind.api")
 
@@ -59,10 +62,55 @@ allow_all_origins = "*" in allowed_origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=r"^https://.*\.vercel\.app$" if not allow_all_origins else None,
     allow_credentials=not allow_all_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _get_cors_headers(request: Request) -> Dict[str, str]:
+    """Ensure CORS headers are appended to error responses for Vercel frontend connectivity."""
+    headers = {}
+    origin = request.headers.get("origin")
+    if allow_all_origins:
+        headers["Access-Control-Allow-Origin"] = "*"
+    elif origin:
+        # If an origin is sent by the browser (local, Vercel preview/production, or custom domain), echo it back
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+        headers["Access-Control-Allow-Headers"] = "*"
+        headers["Access-Control-Allow-Methods"] = "*"
+    elif allowed_origins and allowed_origins[0] != "*":
+        headers["Access-Control-Allow-Origin"] = allowed_origins[0]
+        headers["Access-Control-Allow-Credentials"] = "true"
+        headers["Access-Control-Allow-Headers"] = "*"
+        headers["Access-Control-Allow-Methods"] = "*"
+    return headers
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    cors_headers = _get_cors_headers(request)
+    if exc.headers:
+        cors_headers.update(exc.headers)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers=cors_headers,
+    )
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled server error on {request.url}: {exc}", exc_info=True)
+    cors_headers = _get_cors_headers(request)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {str(exc)}"},
+        headers=cors_headers,
+    )
+
 
 # Singletons for service layer
 chroma_service = ChromaService()
@@ -86,6 +134,7 @@ def startup_event():
         logger.error(f"Startup initialization error: {exc}")
     finally:
         db.close()
+        gc.collect()
 
 
 @app.get("/")
@@ -158,9 +207,14 @@ def analyze_repository(req: AnalyzeRequest, db: Session = Depends(get_db)):
             github_token=github_token,
         )
         return repo
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        logger.warning(f"Validation error during analysis: {exc}")
+        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         logger.error(f"Analysis failed: {exc}", exc_info=True)
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(exc)}")
 
 
 @app.get("/api/repositories/{repo_id}")

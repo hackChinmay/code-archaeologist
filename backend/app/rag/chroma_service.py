@@ -3,6 +3,9 @@ import os
 import logging
 from typing import List, Dict, Any, Optional
 
+import gc
+from backend.app.rag.embeddings import EmbeddingService, RepoMindEmbeddingFunction
+
 logger = logging.getLogger("code_archaeologist.chroma")
 
 try:
@@ -14,12 +17,15 @@ except Exception as exc:
 
 
 class ChromaService:
-    """Manages ChromaDB collections, vector embeddings, and similarity queries."""
+    """Manages ChromaDB collections, vector embeddings, and similarity queries with strict memory boundaries."""
 
     def __init__(self, persist_directory: Optional[str] = None):
         persist_dir = persist_directory or os.getenv("CHROMA_PERSIST_DIR") or os.getenv("CHROMA_DATA_DIR") or "./chroma_data"
         self.persist_directory = persist_dir
         self.client = None
+        self.embedding_service = EmbeddingService()
+        self.embedding_function = RepoMindEmbeddingFunction(self.embedding_service)
+
         if CHROMA_AVAILABLE:
             try:
                 host = os.getenv("CHROMA_HOST")
@@ -57,55 +63,84 @@ class ChromaService:
         safe_id = repository_id.replace("-", "_").replace("/", "_").replace(".", "_")
         return f"repo_{safe_id}"[:63]
 
-    def index_chunks(self, repository_id: str, chunks: List[Dict[str, Any]]) -> int:
-        """
-        Store code chunks in a repository-segregated ChromaDB collection.
-        Enforces complete repository isolation.
-        """
-        if not self.client or not chunks:
-            return 0
-
+    def reset_collection(self, repository_id: str):
+        """Re-create collection to guarantee clean state and repository isolation."""
+        if not self.client:
+            return None
         col_name = self._get_collection_name(repository_id)
-        # Re-create collection to guarantee clean state
         try:
             self.client.delete_collection(name=col_name)
         except Exception:
             pass
+        return self.client.get_or_create_collection(
+            name=col_name,
+            metadata={"repository_id": repository_id},
+            embedding_function=self.embedding_function,
+        )
 
+    def add_chunks_batch(self, repository_id: str, chunks: List[Dict[str, Any]]) -> int:
+        """Add a batch of code chunks directly to ChromaDB without global memory pooling."""
+        if not self.client or not chunks:
+            return 0
+
+        col_name = self._get_collection_name(repository_id)
         collection = self.client.get_or_create_collection(
             name=col_name,
             metadata={"repository_id": repository_id},
+            embedding_function=self.embedding_function,
         )
 
-        ids = [c["id"] for c in chunks]
-        docs = [
-            f"{c.get('symbol_name') or c.get('symbolName', '')} in {c.get('file_path') or c.get('filePath', '')} ({c.get('language', '')}):\n{c.get('content', '')}"
-            for c in chunks
-        ]
-        metadatas = [
-            {
-                "repository_id": repository_id,
-                "file_path": c.get("file_path") or c.get("filePath", ""),
-                "file_id": str(c.get("file_id") or c.get("fileId", "")),
-                "symbol_name": str(c.get("symbol_name") or c.get("symbolName", "")),
-                "symbol_type": str(c.get("symbol_type") or c.get("symbolType", "")),
-                "language": str(c.get("language", "")),
-                "start_line": int(c.get("start_line") or c.get("startLine", 1)),
-                "end_line": int(c.get("end_line") or c.get("endLine", 1)),
-            }
-            for c in chunks
-        ]
-
-        batch_size = 100
+        batch_size = 20
         for i in range(0, len(chunks), batch_size):
-            collection.add(
-                ids=ids[i:i + batch_size],
-                documents=docs[i:i + batch_size],
-                metadatas=metadatas[i:i + batch_size],
-            )
+            batch = chunks[i:i + batch_size]
+            ids = [c["id"] for c in batch]
+            docs = [
+                f"{c.get('symbol_name') or c.get('symbolName', '')} in {c.get('file_path') or c.get('filePath', '')} ({c.get('language', '')}):\n{c.get('content', '')}"
+                for c in batch
+            ]
+            metadatas = [
+                {
+                    "repository_id": repository_id,
+                    "file_path": c.get("file_path") or c.get("filePath", ""),
+                    "file_id": str(c.get("file_id") or c.get("fileId", "")),
+                    "symbol_name": str(c.get("symbol_name") or c.get("symbolName", "")),
+                    "symbol_type": str(c.get("symbol_type") or c.get("symbolType", "")),
+                    "language": str(c.get("language", "")),
+                    "start_line": int(c.get("start_line") or c.get("startLine", 1)),
+                    "end_line": int(c.get("end_line") or c.get("endLine", 1)),
+                }
+                for c in batch
+            ]
+            try:
+                if hasattr(collection, "upsert"):
+                    collection.upsert(ids=ids, documents=docs, metadatas=metadatas)
+                else:
+                    collection.add(ids=ids, documents=docs, metadatas=metadatas)
+            except Exception as e:
+                logger.warning(f"ChromaDB batch insertion fallback on error ({e}); using individual upserts.")
+                for b_id, b_doc, b_meta in zip(ids, docs, metadatas):
+                    try:
+                        if hasattr(collection, "upsert"):
+                            collection.upsert(ids=[b_id], documents=[b_doc], metadatas=[b_meta])
+                        else:
+                            collection.add(ids=[b_id], documents=[b_doc], metadatas=[b_meta])
+                    except Exception:
+                        pass
+            del ids, docs, metadatas, batch
 
-        logger.info(f"Successfully indexed {len(chunks)} code chunks into ChromaDB collection {col_name}")
         return len(chunks)
+
+    def index_chunks(self, repository_id: str, chunks: List[Dict[str, Any]]) -> int:
+        """Store code chunks in a repository-segregated ChromaDB collection using streaming batches."""
+        if not self.client or not chunks:
+            return 0
+
+        self.reset_collection(repository_id)
+        count = self.add_chunks_batch(repository_id, chunks)
+        col_name = self._get_collection_name(repository_id)
+        logger.info(f"Successfully indexed {count} code chunks into ChromaDB collection {col_name}")
+        gc.collect()
+        return count
 
     def similarity_search(
         self,
@@ -122,10 +157,17 @@ class ChromaService:
 
         col_name = self._get_collection_name(repository_id)
         try:
-            collection = self.client.get_collection(name=col_name)
+            collection = self.client.get_collection(
+                name=col_name,
+                embedding_function=self.embedding_function,
+            )
+            count = collection.count()
+            if count == 0:
+                return []
+
             results = collection.query(
                 query_texts=[query],
-                n_results=min(top_k, max(1, collection.count())),
+                n_results=min(top_k, count),
             )
 
             retrieved: List[Dict[str, Any]] = []

@@ -6,7 +6,9 @@ import base64
 import logging
 import datetime
 import requests
-from typing import List, Dict, Any, Optional
+import gc
+from typing import List, Dict, Any, Optional, Set, Tuple
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app.database.mysql_db import Base, engine
@@ -26,6 +28,147 @@ logger = logging.getLogger("code_archaeologist.repo_service")
 
 # Auto-create all tables in the configured database (SQLite or MySQL)
 Base.metadata.create_all(bind=engine)
+
+# Configurable limits from environment
+DEFAULT_MAX_REPO_FILES = 60
+DEFAULT_MAX_FILE_SIZE_BYTES = 256 * 1024  # 256 KB per file
+DEFAULT_MAX_REPO_TOTAL_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB total repo
+
+
+def get_max_repo_files() -> int:
+    """Fetch configured maximum repository files limit from environment."""
+    return int(os.getenv("MAX_REPO_FILES", str(DEFAULT_MAX_REPO_FILES)))
+
+
+def get_max_file_size() -> int:
+    """Fetch configured maximum file size in bytes from environment."""
+    return int(os.getenv("MAX_FILE_SIZE_BYTES", str(DEFAULT_MAX_FILE_SIZE_BYTES)))
+
+
+def get_max_repo_total_size() -> int:
+    """Fetch configured maximum repository total size in bytes from environment."""
+    return int(os.getenv("MAX_REPO_TOTAL_SIZE_BYTES", str(DEFAULT_MAX_REPO_TOTAL_SIZE_BYTES)))
+
+
+# Module-level aliases for direct access and backwards compatibility
+MAX_REPO_FILES = get_max_repo_files()
+MAX_FILE_SIZE_BYTES = get_max_file_size()
+MAX_REPO_TOTAL_SIZE_BYTES = get_max_repo_total_size()
+
+IGNORED_DIRECTORIES = {
+    # Version control
+    ".git", ".github", ".svn", ".hg", ".bzr",
+    # Package managers & dependencies
+    "node_modules", "bower_components", "vendor", "gems", "pods",
+    ".yarn", ".pnpm-store", ".npm",
+    # Virtual environments
+    ".venv", "venv", "env", ".env", "virtualenv", "site-packages",
+    # Build & distribution output
+    "dist", "build", "out", "target", "bin", "obj", ".output", ".next", ".nuxt", ".turbo",
+    ".parcel-cache", ".cache", "release",
+    # Python cache & tooling
+    "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", ".tox", ".eggs",
+    # IDEs & editors
+    ".idea", ".vscode", ".vs",
+    # Testing & coverage
+    "coverage", ".nyc_output",
+    # Application runtime data & temporary folders
+    "chroma_data", "tmp", "temp", ".serverless", ".terraform",
+}
+
+IGNORED_FILE_NAMES = {
+    # Lockfiles
+    "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "composer.lock",
+    "cargo.lock", "poetry.lock", "gemfile.lock", "mix.lock", "pipfile.lock",
+    "bun.lockb", "flake.lock",
+    # Environment & secrets files
+    ".env", ".env.local", ".env.production", ".env.development",
+    # Git & config files without code
+    ".gitignore", ".gitattributes", ".gitmodules",
+    ".dockerignore", ".editorconfig", ".npmignore",
+    # License & legal files
+    "license", "license.txt", "license.md", "licence",
+}
+
+IGNORED_EXTENSIONS = {
+    # Binaries & compiled artifacts
+    ".exe", ".dll", ".so", ".dylib", ".class", ".jar", ".war", ".ear",
+    ".pyc", ".pyd", ".pyo", ".bin", ".dat", ".wasm", ".iso",
+    ".db", ".sqlite", ".sqlite3", ".o", ".a", ".lib",
+    # Images & Media
+    ".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg", ".webp", ".avif", ".bmp", ".tiff",
+    ".mp3", ".wav", ".ogg", ".flac", ".mp4", ".mov", ".avi", ".mkv", ".webm",
+    # Compressed archives
+    ".zip", ".tar", ".gz", ".tgz", ".7z", ".rar", ".bz2", ".xz", ".zst",
+    # Web fonts
+    ".woff", ".woff2", ".ttf", ".eot", ".otf",
+    # Documents
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+    # Sourcemaps
+    ".map",
+}
+
+SUPPORTED_CODE_EXTENSIONS = {
+    ".py", ".ts", ".tsx", ".js", ".jsx", ".java", ".go", ".rs",
+    ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".cs", ".rb",
+    ".php", ".swift", ".kt", ".scala", ".sql", ".html", ".css",
+    ".scss", ".json", ".yaml", ".yml", ".md", ".toml", ".xml", ".sh",
+}
+
+
+def is_eligible_file(path: str, size: Optional[int] = None, content: Optional[str] = None) -> Tuple[bool, Optional[str]]:
+    """Determine whether a file path/size/content should be parsed and indexed.
+    Filters out .git, node_modules, build output, virtual environments, binaries, lockfiles, and oversized files.
+    """
+    normalized_path = path.replace("\\", "/").strip().lstrip("/")
+    parts = normalized_path.split("/")
+    filename = parts[-1].lower() if parts else ""
+    effective_max_file_size = get_max_file_size()
+
+    # 1. Directory exclusion
+    for part in parts[:-1]:
+        part_clean = part.strip()
+        if part_clean.lower() in IGNORED_DIRECTORIES or part_clean.startswith("."):
+            return False, f"ignored directory: {part}"
+
+    # 2. Specific lockfile and generated file exclusion
+    if filename in IGNORED_FILE_NAMES:
+        return False, f"ignored lockfile: {filename}"
+
+    # 3. Minified / bundled assets exclusion
+    if (
+        filename.endswith(".min.js")
+        or filename.endswith(".min.css")
+        or filename.endswith(".bundle.js")
+        or filename.endswith(".bundle.css")
+        or filename.endswith(".chunk.js")
+        or filename.endswith(".chunk.css")
+        or filename.endswith(".min.map")
+        or filename.endswith(".map")
+    ):
+        return False, "minified/bundled asset"
+
+    # 4. Extension validation
+    base, ext = os.path.splitext(filename)
+    ext = ext.lower()
+    if ext in IGNORED_EXTENSIONS:
+        return False, f"ignored file extension: {ext}"
+
+    if ext not in SUPPORTED_CODE_EXTENSIONS:
+        return False, f"unsupported file extension: {ext}"
+
+    # 5. File size boundary check
+    if size is not None and size > effective_max_file_size:
+        return False, f"file size {size} exceeds max {effective_max_file_size} bytes"
+
+    # 6. Binary content check (null bytes)
+    if content is not None:
+        if "\x00" in content:
+            return False, "binary content detected"
+        if len(content.encode("utf-8", errors="ignore")) > effective_max_file_size:
+            return False, f"content exceeds max {effective_max_file_size} bytes"
+
+    return True, None
 
 
 class RepositoryService:
@@ -53,9 +196,14 @@ class RepositoryService:
     def get_files(self, repo_id: str, db: Session) -> List[Dict[str, Any]]:
         """Fetch all files belonging to a repository."""
         files = db.query(FileModel).filter(FileModel.repository_id == repo_id).all()
+        all_symbols = db.query(SymbolModel).filter(SymbolModel.repository_id == repo_id).all()
+        symbols_by_file: Dict[str, List[SymbolModel]] = {}
+        for s in all_symbols:
+            symbols_by_file.setdefault(s.file_id, []).append(s)
+
         res = []
         for f in files:
-            symbols = db.query(SymbolModel).filter(SymbolModel.file_id == f.id).all()
+            symbols = symbols_by_file.get(f.id, [])
             res.append({
                 "id": f.id,
                 "repositoryId": f.repository_id,
@@ -177,6 +325,7 @@ class RepositoryService:
         symbols = db.query(SymbolModel).filter(SymbolModel.repository_id == repo_id).all()
         deps = db.query(DependencyModel).filter(DependencyModel.repository_id == repo_id).all()
 
+        file_path_map = {f.id: f.path for f in files}
         files_data = [
             {
                 "id": f.id,
@@ -194,7 +343,7 @@ class RepositoryService:
                 "id": s.id,
                 "name": s.name,
                 "type": s.type,
-                "file_path": (db.query(FileModel).filter(FileModel.id == s.file_id).first().path if db.query(FileModel).filter(FileModel.id == s.file_id).first() else ""),
+                "file_path": file_path_map.get(s.file_id, ""),
                 "signature": s.signature,
                 "docstring": s.docstring,
             }
@@ -241,37 +390,64 @@ class RepositoryService:
 
         return self._ingest_github_repository(db, url, github_token)
 
-    def _ingest_local_files(self, db: Session, local_files: List[Dict[str, Any]]) -> Dict[str, Any]:
-        if not local_files:
-            raise ValueError("No valid files provided for local upload.")
+    def _clean_repo_records(self, db: Session, repo_id: str):
+        """Purge any previous records for a repository ID to guarantee clean state and prevent memory leaks."""
+        db.query(SymbolModel).filter(SymbolModel.repository_id == repo_id).delete()
+        db.query(CodeChunkModel).filter(CodeChunkModel.repository_id == repo_id).delete()
+        db.query(DependencyModel).filter(DependencyModel.repository_id == repo_id).delete()
+        db.query(FileModel).filter(FileModel.repository_id == repo_id).delete()
+        db.query(RepositoryModel).filter(RepositoryModel.id == repo_id).delete()
+        db.commit()
 
-        # Limit to 50 files to respect memory limits on free tiers
-        if len(local_files) > 50:
-            local_files = local_files[:50]
+    def _ingest_local_files(self, db: Session, local_files: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Ingest uploaded files incrementally without loading all files simultaneously into memory."""
+        if not local_files:
+            raise HTTPException(status_code=400, detail="No valid files provided for local upload.")
+
+        max_files = get_max_repo_files()
+        max_file_size = get_max_file_size()
+        max_repo_size = get_max_repo_total_size()
 
         repo_id = f"repo-local-{int(time.time())}"
         repo_name = "local-project-upload"
 
-        # Prepare File Models
-        raw_files = []
-        for idx, lf in enumerate(local_files):
-            path = lf.get("path", f"file_{idx + 1}.txt")
-            content = lf.get("content", "")
-            # Truncate oversized individual files to avoid OOM
-            if len(content) > 500000:
-                content = content[:500000] + "\n// [Truncated: Exceeded 500KB limit]"
-            lang = self._detect_language(path)
-            lines = content.split("\n")
-            raw_files.append({
-                "id": f"f-{repo_id}-{idx + 1}",
-                "repository_id": repo_id,
-                "path": path,
-                "name": os.path.basename(path),
-                "language": lang,
-                "size": len(content),
-                "lines_count": len(lines),
-                "content": content,
-            })
+        def generate_local_stream():
+            cumulative_size = 0
+            eligible_count = 0
+            for lf in local_files:
+                path = lf.get("path", "")
+                content = lf.get("content", "")
+                ok, reason = is_eligible_file(path, size=len(content), content=content)
+                if not ok:
+                    logger.info(f"Skipping local file '{path}': {reason}")
+                    continue
+
+                content_len = len(content.encode("utf-8", errors="ignore"))
+                if content_len > max_file_size:
+                    content = content[:max_file_size] + "\n// [Truncated: Exceeded file size limit]"
+                    content_len = len(content)
+
+                cumulative_size += content_len
+                if cumulative_size > max_repo_size:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"Total repository size ({round(cumulative_size / (1024 * 1024), 2)}MB) exceeds maximum memory safety limit of {max_repo_size // (1024 * 1024)}MB.",
+                    )
+
+                eligible_count += 1
+                yield {
+                    "id": f"f-{repo_id}-{eligible_count}",
+                    "repository_id": repo_id,
+                    "path": path,
+                    "name": os.path.basename(path),
+                    "language": self._detect_language(path),
+                    "size": content_len,
+                    "content": content,
+                }
+
+                if eligible_count >= max_files:
+                    logger.warning(f"Reached MAX_REPO_FILES limit of {max_files}; remaining files omitted.")
+                    break
 
         return self._process_and_persist(
             db=db,
@@ -280,21 +456,26 @@ class RepositoryService:
             owner="local-developer",
             url="local://workspace",
             description="Locally uploaded project workspace.",
-            raw_files=raw_files,
+            raw_files=generate_local_stream(),
         )
 
     def _ingest_github_repository(self, db: Session, url: str, github_token: Optional[str] = None) -> Dict[str, Any]:
+        """Stream GitHub repository files incrementally, enforcing size boundaries and releasing buffers."""
         parts = url.rstrip("/").split("/")
         if len(parts) < 2:
-            raise ValueError("Invalid GitHub URL format.")
+            raise HTTPException(status_code=400, detail="Invalid GitHub URL format.")
         owner = parts[-2]
         repo_name = parts[-1]
         repo_id = f"repo-{owner}-{repo_name}".lower()
 
-        # Check existing
+        # Check existing to prevent duplicate work and memory pressure
         existing = db.query(RepositoryModel).filter(RepositoryModel.id == repo_id).first()
-        if existing:
+        if existing and existing.status == "COMPLETED":
             return self._repo_to_dict(existing)
+
+        max_files = get_max_repo_files()
+        max_file_size = get_max_file_size()
+        max_repo_size = get_max_repo_total_size()
 
         # Fetch files from GitHub REST API
         headers = {"Accept": "application/vnd.github.v3+json"}
@@ -303,68 +484,128 @@ class RepositoryService:
             headers["Authorization"] = f"Bearer {token}"
 
         api_url = f"https://api.github.com/repos/{owner}/{repo_name}"
-        meta_res = requests.get(api_url, headers=headers, timeout=15)
+        try:
+            meta_res = requests.get(api_url, headers=headers, timeout=15)
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Failed to connect to GitHub API: {str(e)}")
+
+        if meta_res.status_code == 404:
+            raise HTTPException(status_code=404, detail="GitHub repository not found or private.")
+        if meta_res.status_code == 403:
+            raise HTTPException(status_code=429, detail="GitHub API rate limit exceeded or access forbidden.")
         if meta_res.status_code != 200:
-            raise ValueError(f"GitHub repository not found or access forbidden: {meta_res.status_code}")
+            raise HTTPException(status_code=400, detail=f"GitHub API error: HTTP {meta_res.status_code}")
+
         meta = meta_res.json()
         default_branch = meta.get("default_branch", "main")
         desc = meta.get("description", "GitHub repository")
+        del meta, meta_res
 
         # Fetch Git Tree recursively
         tree_url = f"https://api.github.com/repos/{owner}/{repo_name}/git/trees/{default_branch}?recursive=1"
-        tree_res = requests.get(tree_url, headers=headers, timeout=20)
+        try:
+            tree_res = requests.get(tree_url, headers=headers, timeout=20)
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Failed to retrieve repository git tree: {str(e)}")
+
         if tree_res.status_code != 200:
-            raise ValueError("Failed to retrieve repository git tree.")
+            raise HTTPException(status_code=400, detail="Failed to retrieve repository git tree from GitHub.")
+
         tree_data = tree_res.json().get("tree", [])
 
-        ignored_dirs = {"node_modules", ".git", "dist", "build", "__pycache__", ".venv", "venv", ".idea"}
-        supported_exts = {".py", ".ts", ".tsx", ".js", ".jsx", ".java", ".json", ".md", ".sql", ".html", ".css"}
-
-        raw_files = []
-        file_idx = 0
-
+        # Filter candidate blobs before downloading
+        candidate_blobs = []
         for item in tree_data:
             if item.get("type") == "blob":
                 path = item.get("path", "")
-                parts = path.split("/")
-                if any(p in ignored_dirs for p in parts):
+                blob_size = item.get("size")
+                ok, reason = is_eligible_file(path, size=blob_size)
+                if ok:
+                    candidate_blobs.append(item)
+
+        # Release raw tree data immediately to reclaim RAM
+        del tree_data, tree_res
+        gc.collect()
+
+        if not candidate_blobs:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No eligible source code files found in repository within size ({max_file_size // 1024}KB) and file limits.",
+            )
+
+        # Check pre-computed total size if available in git tree
+        known_sizes = [b.get("size", 0) for b in candidate_blobs if b.get("size") is not None]
+        if known_sizes and sum(known_sizes) > max_repo_size:
+            total_mb = round(sum(known_sizes) / (1024 * 1024), 2)
+            limit_mb = max_repo_size // (1024 * 1024)
+            raise HTTPException(
+                status_code=413,
+                detail=f"Total repository size ({total_mb}MB) exceeds maximum memory safety limit of {limit_mb}MB. Please analyze a smaller repository or reduce file size.",
+            )
+
+        # Enforce maximum number of files to process
+        if len(candidate_blobs) > max_files:
+            candidate_blobs = candidate_blobs[:max_files]
+
+        def generate_github_stream():
+            total_downloaded_bytes = 0
+            file_idx = 0
+            for item in candidate_blobs:
+                path = item.get("path", "")
+                blob_url = item.get("url")
+                if not blob_url:
                     continue
-                _, ext = os.path.splitext(path)
-                if ext.lower() not in supported_exts:
+
+                try:
+                    blob_res = requests.get(blob_url, headers=headers, timeout=10)
+                except Exception:
                     continue
 
-                # Fetch file blob content (up to 50 files to respect rate limits)
-                if file_idx >= 50:
-                    break
+                if blob_res.status_code != 200:
+                    continue
 
-                blob_res = requests.get(item.get("url"), headers=headers, timeout=10)
-                if blob_res.status_code == 200:
-                    b_data = blob_res.json()
-                    content = ""
-                    if b_data.get("encoding") == "base64":
-                        try:
-                            content = base64.b64decode(b_data["content"]).decode("utf-8", errors="replace")
-                        except Exception:
-                            continue
-                    else:
-                        content = b_data.get("content", "")
+                b_data = blob_res.json()
+                del blob_res
 
-                    file_idx += 1
-                    lang = self._detect_language(path)
-                    lines = content.split("\n")
-                    raw_files.append({
-                        "id": f"f-{repo_id}-{file_idx}",
-                        "repository_id": repo_id,
-                        "path": path,
-                        "name": os.path.basename(path),
-                        "language": lang,
-                        "size": len(content),
-                        "lines_count": len(lines),
-                        "content": content,
-                    })
+                content = ""
+                if b_data.get("encoding") == "base64":
+                    try:
+                        content = base64.b64decode(b_data["content"]).decode("utf-8", errors="replace")
+                    except Exception:
+                        del b_data
+                        continue
+                else:
+                    content = b_data.get("content", "")
+                del b_data
 
-        if not raw_files:
-            raise ValueError("No supported source code files found in repository.")
+                # Exclude binary null bytes
+                if "\x00" in content:
+                    del content
+                    continue
+
+                content_bytes_len = len(content.encode("utf-8", errors="ignore"))
+                if content_bytes_len > max_file_size:
+                    content = content[:max_file_size] + "\n// [Truncated: Exceeded file size limit]"
+                    content_bytes_len = len(content)
+
+                total_downloaded_bytes += content_bytes_len
+                if total_downloaded_bytes > max_repo_size:
+                    del content
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"Repository size ({round(total_downloaded_bytes / (1024 * 1024), 2)}MB) exceeds maximum memory safety limit of {max_repo_size // (1024 * 1024)}MB.",
+                    )
+
+                file_idx += 1
+                yield {
+                    "id": f"f-{repo_id}-{file_idx}",
+                    "repository_id": repo_id,
+                    "path": path,
+                    "name": os.path.basename(path),
+                    "language": self._detect_language(path),
+                    "size": content_bytes_len,
+                    "content": content,
+                }
 
         return self._process_and_persist(
             db=db,
@@ -374,7 +615,7 @@ class RepositoryService:
             url=url,
             default_branch=default_branch,
             description=desc,
-            raw_files=raw_files,
+            raw_files=generate_github_stream(),
         )
 
     def _process_and_persist(
@@ -385,54 +626,162 @@ class RepositoryService:
         owner: str,
         url: str,
         description: str,
-        raw_files: List[Dict[str, Any]],
+        raw_files: Any,
         default_branch: str = "main",
     ) -> Dict[str, Any]:
-        """Tree-sitter AST parse, dependency analysis, chunking, and database insertion."""
-        # 1. AST Parsing via Tree-sitter
-        parsed_results = {}
-        all_symbols = []
+        """Incremental Tree-sitter AST parse, dependency analysis, chunking, and database insertion."""
+        # 1. Reset collection in ChromaDB and clear existing records in DB
+        self.chroma_service.reset_collection(repo_id)
+        self._clean_repo_records(db, repo_id)
 
-        for f in raw_files:
-            res = self.parser.parse_file(f["path"], f["content"], f["language"])
-            if isinstance(res, list):
-                symbols = res
-                imports = []
-                for line in f["content"].split("\n"):
-                    l = line.strip()
-                    if l.startswith("from ") and "import" in l:
-                        parts = l.split()
-                        if len(parts) >= 2:
-                            imports.append(parts[1])
-                    elif l.startswith("import "):
-                        parts = l.split()
-                        if len(parts) >= 2:
-                            imports.append(parts[1].split(",")[0].strip(";\"'"))
-                parsed_results[f["path"]] = {"symbols": symbols, "imports": imports, "calls": []}
-            else:
-                symbols = res.get("symbols", [])
-                parsed_results[f["path"]] = res
+        # 2. Incremental per-file processing
+        file_import_map: Dict[str, List[str]] = {}
+        file_paths: Set[str] = set()
+        total_loc = 0
+        total_symbols_count = 0
+        total_chunks_count = 0
+        total_classes_count = 0
+        total_functions_count = 0
+        lang_counts: Dict[str, int] = {}
+        dir_set: Set[str] = set()
 
+        sym_idx = 0
+        chunk_idx = 0
+        total_files = 0
+        chunk_buffer: List[Dict[str, Any]] = []
+        CHROMA_BATCH_SIZE = 20
+
+        for f_idx, f in enumerate(raw_files):
+            total_files += 1
+            path = f["path"]
+            content = f["content"]
+            lang = f["language"]
+            loc = f.get("lines_count") or (content.count("\n") + (1 if content else 0))
+            total_loc += loc
+            file_paths.add(path)
+            d = os.path.dirname(path)
+            if d:
+                dir_set.add(d)
+            lang_counts[lang] = lang_counts.get(lang, 0) + 1
+
+            # Extract AST symbols for this file
+            symbols = self.parser.parse_file(path, content, lang)
             for s in symbols:
                 s["file_id"] = f["id"]
                 s["repository_id"] = repo_id
-                all_symbols.append(s)
+                s["file_path"] = path
 
-        # 2. Static Dependency Analysis
-        dependencies = self.static_analyzer.analyze_dependencies(repo_id, raw_files, parsed_results)
+            # Extract imports for dependency analysis
+            imports: List[str] = []
+            for line in content.splitlines():
+                l = line.strip()
+                if l.startswith("from ") and "import" in l:
+                    parts = l.split()
+                    if len(parts) >= 2:
+                        imports.append(parts[1])
+                elif l.startswith("import "):
+                    parts = l.split()
+                    if len(parts) >= 2:
+                        imports.append(parts[1].split(",")[0].strip(";\"'"))
+            file_import_map[path] = imports
 
-        # 3. Hierarchical Code Chunking
-        chunks = self.chunker.chunk_repository(repo_id, raw_files, all_symbols)
+            # Chunk single file incrementally
+            file_chunks = self.chunker.chunk_single_file(
+                repository_id=repo_id,
+                file=f,
+                file_symbols=symbols,
+                start_chunk_idx=chunk_idx,
+            )
+            chunk_idx += len(file_chunks)
+            total_chunks_count += len(file_chunks)
+            total_symbols_count += len(symbols)
 
-        # 4. Dense Vector Indexing into ChromaDB
-        self.chroma_service.index_chunks(repo_id, chunks)
+            total_classes_count += sum(1 for s in symbols if s.get("type") == "class")
+            total_functions_count += sum(1 for s in symbols if s.get("type") in ["function", "method"])
 
-        # 5. Language Breakdown
-        lang_counts: Dict[str, int] = {}
-        for f in raw_files:
-            lang = f["language"]
-            lang_counts[lang] = lang_counts.get(lang, 0) + 1
+            # Buffer chunks and write in bounded batches
+            if file_chunks:
+                chunk_buffer.extend(file_chunks)
+                if len(chunk_buffer) >= CHROMA_BATCH_SIZE:
+                    self.chroma_service.add_chunks_batch(repo_id, chunk_buffer)
+                    chunk_buffer.clear()
 
+            # Persist FileModel
+            db.add(FileModel(
+                id=f["id"],
+                repository_id=repo_id,
+                path=path,
+                language=lang,
+                size=f.get("size") or len(content.encode("utf-8", errors="ignore")),
+                lines_count=loc,
+                content=content,
+            ))
+
+            # Persist SymbolModels
+            for s in symbols:
+                sym_idx += 1
+                db.add(SymbolModel(
+                    id=f"sym-{repo_id}-{sym_idx}",
+                    repository_id=repo_id,
+                    file_id=f["id"],
+                    name=s["name"],
+                    type=s.get("type", "symbol"),
+                    start_line=s.get("start_line", 1),
+                    end_line=s.get("end_line", 1),
+                    signature=s.get("signature"),
+                    docstring=s.get("docstring"),
+                    detected_from=s.get("detected_from", "Tree-sitter AST"),
+                ))
+
+            # Persist CodeChunkModels
+            for c in file_chunks:
+                db.add(CodeChunkModel(
+                    id=c["id"],
+                    repository_id=repo_id,
+                    file_id=f["id"],
+                    symbol_name=c.get("symbol_name"),
+                    symbol_type=c.get("symbol_type"),
+                    start_line=c["start_line"],
+                    end_line=c["end_line"],
+                    content=c["content"],
+                ))
+
+            # Periodically flush every 10 files to keep memory usage low
+            if (f_idx + 1) % 10 == 0:
+                db.flush()
+                gc.collect()
+
+            del symbols, file_chunks, content
+
+        if total_files == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="No eligible source code files found in repository within memory limits.",
+            )
+
+        # Flush any remaining chunks in buffer to ChromaDB
+        if chunk_buffer:
+            self.chroma_service.add_chunks_batch(repo_id, chunk_buffer)
+            chunk_buffer.clear()
+
+        # 3. Static Dependency Analysis
+        dependencies = self.static_analyzer.analyze_dependencies_from_imports(
+            repo_id,
+            file_paths=file_paths,
+            file_import_map=file_import_map,
+        )
+
+        for d in dependencies:
+            db.add(DependencyModel(
+                id=d["id"],
+                repository_id=repo_id,
+                source=d["source"],
+                target=d["target"],
+                relationship_type=d["relationship_type"],
+                category=d.get("category", "internal"),
+            ))
+
+        # 4. Language Breakdown
         lang_colors = {
             "Python": "#3572A5",
             "TypeScript": "#3178c6",
@@ -445,17 +794,13 @@ class RepositoryService:
             {
                 "name": lang,
                 "filesCount": count,
-                "percentage": round((count / len(raw_files)) * 100, 1),
+                "percentage": round((count / total_files) * 100, 1) if total_files > 0 else 0,
                 "color": lang_colors.get(lang, "#8b949e"),
             }
             for lang, count in lang_counts.items()
         ]
 
-        # 6. Database Transaction
-        # Clear any prior records for this repo_id
-        db.query(RepositoryModel).filter(RepositoryModel.id == repo_id).delete()
-        db.commit()
-
+        # 5. Create Repository Record
         repo_model = RepositoryModel(
             id=repo_id,
             name=repo_name,
@@ -465,70 +810,26 @@ class RepositoryService:
             description=description,
             status="COMPLETED",
             progress=100,
-            status_message=f"Analysis completed. {len(raw_files)} files parsed, {len(all_symbols)} symbols extracted, {len(chunks)} chunks indexed.",
-            summary=f"Project consisting of {len(raw_files)} files in {', '.join(lang_counts.keys())}. Parsed {len(all_symbols)} Tree-sitter symbols and {len(chunks)} semantic chunks.",
-            architecture_summary=f"Architecture extracted from AST import and call hierarchy graphs across {len(raw_files)} files.",
+            status_message=f"Analysis completed. {total_files} files parsed, {total_symbols_count} symbols extracted, {total_chunks_count} chunks indexed.",
+            summary=f"Project consisting of {total_files} files in {', '.join(lang_counts.keys())}. Parsed {total_symbols_count} Tree-sitter symbols and {total_chunks_count} semantic chunks.",
+            architecture_summary=f"Architecture extracted from AST import and call hierarchy graphs across {total_files} files.",
             stats={
-                "filesCount": len(raw_files),
-                "dirsCount": len({os.path.dirname(f['path']) for f in raw_files}),
-                "classesCount": len([s for s in all_symbols if s.get("type") == "class"]),
-                "functionsCount": len([s for s in all_symbols if s.get("type") in ["function", "method"]]),
+                "filesCount": total_files,
+                "dirsCount": len(dir_set),
+                "classesCount": total_classes_count,
+                "functionsCount": total_functions_count,
                 "dependenciesCount": len(dependencies),
-                "linesOfCode": sum(f.get("lines_count", 0) for f in raw_files),
-                "chunksCount": len(chunks),
+                "linesOfCode": total_loc,
+                "chunksCount": total_chunks_count,
                 "languages": languages,
             },
         )
         db.add(repo_model)
-
-        for f in raw_files:
-            db.add(FileModel(
-                id=f["id"],
-                repository_id=repo_id,
-                path=f["path"],
-                language=f["language"],
-                size=f["size"],
-                lines_count=f["lines_count"],
-                content=f["content"],
-            ))
-
-        for idx, s in enumerate(all_symbols):
-            db.add(SymbolModel(
-                id=f"sym-{repo_id}-{idx + 1}",
-                repository_id=repo_id,
-                file_id=s["file_id"],
-                name=s["name"],
-                type=s.get("type", "symbol"),
-                start_line=s.get("start_line", 1),
-                end_line=s.get("end_line", 1),
-                signature=s.get("signature"),
-                docstring=s.get("docstring"),
-                detected_from=s.get("detected_from", "Tree-sitter AST"),
-            ))
-
-        for d in dependencies:
-            db.add(DependencyModel(
-                id=d["id"],
-                repository_id=repo_id,
-                source=d["source"],
-                target=d["target"],
-                relationship_type=d["relationship_type"],
-                category=d.get("category", "internal"),
-            ))
-
-        for c in chunks:
-            db.add(CodeChunkModel(
-                id=c["id"],
-                repository_id=repo_id,
-                file_id=c.get("file_id"),
-                symbol_name=c.get("symbol_name"),
-                symbol_type=c.get("symbol_type"),
-                start_line=c["start_line"],
-                end_line=c["end_line"],
-                content=c["content"],
-            ))
-
         db.commit()
+
+        # Explicit garbage collection to release intermediate buffers
+        gc.collect()
+
         return self._repo_to_dict(repo_model)
 
     def _seed_fastapi_sample(self, db: Session, sample_id: str) -> Dict[str, Any]:

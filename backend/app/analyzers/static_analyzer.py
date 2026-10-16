@@ -6,39 +6,46 @@ class StaticAnalyzer:
     """Computes internal/external dependencies, fan-in/fan-out, and architecture graphs."""
 
     @staticmethod
-    def analyze_dependencies(
+    def analyze_dependencies_from_imports(
         repository_id: str,
-        files: List[Dict[str, Any]],
-        parsed_results: Dict[str, Dict[str, Any]],
+        file_paths: Set[str],
+        file_import_map: Dict[str, List[str]],
     ) -> List[Dict[str, Any]]:
         """
-        Derive internal file-to-file dependencies and external package references.
+        Derive internal file-to-file dependencies and external package references
+        using lightweight path and import string sets, without holding file contents in RAM.
         """
         dependencies: List[Dict[str, Any]] = []
-        file_paths = {f["path"] for f in files}
-        file_modules = {os.path.splitext(os.path.basename(f["path"]))[0]: f["path"] for f in files}
+        file_modules = {os.path.splitext(os.path.basename(p))[0]: p for p in file_paths}
 
         dep_idx = 0
-        for file in files:
-            path = file["path"]
-            parse_info = parsed_results.get(path, {"symbols": [], "imports": [], "calls": []})
-            imported_targets = parse_info.get("imports", [])
-
+        for path, imported_targets in file_import_map.items():
             for imp in imported_targets:
                 dep_idx += 1
                 clean_imp = imp.strip().replace(";", "").strip("\"'")
                 root_module = clean_imp.split(".")[0].split("/")[0]
+                leaf_module = clean_imp.split(".")[-1].split("/")[-1]
+                normalized_imp_path = clean_imp.replace(".", "/")
 
                 # Check if this import matches a project file
                 matched_internal_path = None
                 if clean_imp in file_paths:
                     matched_internal_path = clean_imp
+                elif leaf_module in file_modules:
+                    matched_internal_path = file_modules[leaf_module]
                 elif root_module in file_modules:
                     matched_internal_path = file_modules[root_module]
                 else:
-                    # Check partial directory match
+                    # Check partial directory match or slash normalized path
                     for fp in file_paths:
-                        if clean_imp in fp or fp.endswith(f"{clean_imp}.py") or fp.endswith(f"{clean_imp}.ts"):
+                        if (
+                            clean_imp in fp
+                            or normalized_imp_path in fp
+                            or fp.endswith(f"{clean_imp}.py")
+                            or fp.endswith(f"{clean_imp}.ts")
+                            or fp.endswith(f"/{leaf_module}.py")
+                            or fp.endswith(f"/{leaf_module}.ts")
+                        ):
                             matched_internal_path = fp
                             break
 
@@ -63,6 +70,28 @@ class StaticAnalyzer:
                     })
 
         return dependencies
+
+    @staticmethod
+    def analyze_dependencies(
+        repository_id: str,
+        files: List[Dict[str, Any]],
+        parsed_results: Dict[str, Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        """
+        Derive internal file-to-file dependencies and external package references.
+        """
+        file_paths = {f["path"] for f in files}
+        file_import_map: Dict[str, List[str]] = {}
+        for f in files:
+            path = f["path"]
+            parse_info = parsed_results.get(path, {"symbols": [], "imports": [], "calls": []})
+            file_import_map[path] = parse_info.get("imports", [])
+
+        return StaticAnalyzer.analyze_dependencies_from_imports(
+            repository_id=repository_id,
+            file_paths=file_paths,
+            file_import_map=file_import_map,
+        )
 
     @staticmethod
     def build_architecture_graph(

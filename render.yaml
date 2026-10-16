@@ -20,3 +20,9 @@ services:
         sync: false
       - key: GITHUB_TOKEN
         sync: false
+      - key: MAX_REPO_FILES
+        value: "60"
+      - key: MAX_FILE_SIZE_BYTES
+        value: "262144"
+      - key: MAX_REPO_TOTAL_SIZE_BYTES
+        value: "10485760"

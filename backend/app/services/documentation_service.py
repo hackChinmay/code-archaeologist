@@ -12,6 +12,18 @@ class DocumentationService:
     def __init__(self, chroma_service: ChromaService):
         self.chroma_service = chroma_service
         self.api_key = os.getenv("GEMINI_API_KEY", "").strip()
+        self._genai_client = None
+
+    def _get_genai_client(self):
+        if not self._genai_client:
+            api_key = self.api_key or os.getenv("GEMINI_API_KEY", "").strip()
+            if api_key:
+                try:
+                    from google import genai
+                    self._genai_client = genai.Client(api_key=api_key)
+                except Exception as e:
+                    logger.warning(f"Could not initialize GenAI client: {e}")
+        return self._genai_client
 
     def generate_documentation(
         self,
@@ -27,10 +39,9 @@ class DocumentationService:
         evidence_sources = list({c["file_path"] for c in chunks})
         context_text = "\n\n".join([f"File: {c['file_path']}\n{c['content']}" for c in chunks])
 
-        if self.api_key and chunks:
+        client = self._get_genai_client()
+        if client and chunks:
             try:
-                from google import genai
-                client = genai.Client(api_key=self.api_key)
                 prompt = f"""You are Code Archaeologist, an automated software documentation generator.
 Target: {target or repo_name} (Scope: {scope})
 

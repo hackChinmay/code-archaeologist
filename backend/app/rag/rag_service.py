@@ -43,6 +43,18 @@ class RAGService:
         self.chroma_service = chroma_service
         self.api_key = os.getenv("GEMINI_API_KEY", "").strip()
         self.model_name = "gemini-2.5-flash"
+        self._genai_client = None
+
+    def _get_genai_client(self):
+        if not self._genai_client:
+            api_key = self.api_key or os.getenv("GEMINI_API_KEY", "").strip()
+            if api_key:
+                try:
+                    from google import genai
+                    self._genai_client = genai.Client(api_key=api_key)
+                except Exception as e:
+                    logger.warning(f"Could not initialize GenAI client: {e}")
+        return self._genai_client
 
     def ask(self, repository_id: str, repo_name: str, question: str) -> Dict[str, Any]:
         """
@@ -155,15 +167,12 @@ class RAGService:
         return "\n".join(context_parts), evidence_items, list(seen_files)
 
     def _call_gemini(self, prompt: str, repo_name: str) -> str:
-        """Call Google Gemini with strict temperature control."""
-        api_key = self.api_key or os.getenv("GEMINI_API_KEY", "").strip()
-        if not api_key:
+        """Call Google Gemini with strict temperature control reusing client instance."""
+        client = self._get_genai_client()
+        if not client:
             return self._extractive_fallback(prompt)
 
         try:
-            from google import genai
-            client = genai.Client(api_key=api_key)
-            # Try current fast model with fallback to available model
             response = client.models.generateContent(
                 model=self.model_name,
                 contents=prompt,
@@ -175,8 +184,6 @@ class RAGService:
         except Exception as err:
             logger.warning(f"Gemini API error ({err}); trying gemini-1.5-flash fallback.")
             try:
-                from google import genai
-                client = genai.Client(api_key=api_key)
                 response = client.models.generateContent(
                     model="gemini-1.5-flash",
                     contents=prompt,
