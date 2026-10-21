@@ -29,7 +29,7 @@ async function handleResponse<T>(res: Response, defaultError: string): Promise<T
     } catch {
       // Response wasn't valid JSON
     }
-    throw new Error(detail ? `${defaultError}: ${detail}` : defaultError);
+    throw new Error(detail || defaultError);
   }
   return res.json();
 }

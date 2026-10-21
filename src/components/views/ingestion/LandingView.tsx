@@ -12,6 +12,9 @@ import {
   FileCode2,
   ShieldCheck,
   Zap,
+  Lock,
+  KeyRound,
+  ExternalLink,
 } from 'lucide-react';
 import type { Repository } from '../../../types/index.ts';
 
@@ -33,6 +36,18 @@ export const LandingView: React.FC<LandingViewProps> = ({
   const [repoUrl, setRepoUrl] = useState('');
   const [githubToken, setGithubToken] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  React.useEffect(() => {
+    if (error && (error.toLowerCase().includes('private') || error.toLowerCase().includes('404') || error.toLowerCase().includes('access denied'))) {
+      setShowAdvanced(true);
+    }
+  }, [error]);
+
+  const isPrivateRepo =
+    Boolean(error) &&
+    (error!.toLowerCase().includes('private') ||
+      error!.toLowerCase().includes('404') ||
+      error!.toLowerCase().includes('access denied'));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,23 +163,54 @@ export const LandingView: React.FC<LandingViewProps> = ({
           </div>
 
           {showAdvanced && (
-            <div className="pt-2">
+            <div className="pt-2 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                <span className="flex items-center space-x-1.5 text-cyan-400 font-medium">
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>GitHub Personal Access Token</span>
+                </span>
+                <span className="text-amber-400/90 text-[10px]">Required for private repositories</span>
+              </div>
               <input
                 type="password"
-                placeholder="GitHub Personal Access Token (ghp_...)"
+                placeholder="Paste token (ghp_... or github_pat_...)"
                 value={githubToken}
                 onChange={(e) => setGithubToken(e.target.value)}
-                className="w-full bg-[#0b0f17] border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-cyan-500"
+                className="w-full bg-[#0b0f17] border border-cyan-700/60 focus:border-cyan-400 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:ring-1 focus:ring-cyan-500"
               />
             </div>
           )}
         </form>
 
         {error && (
-          <div className="mt-4 p-3 bg-red-950/40 border border-red-800/60 rounded-xl text-red-300 text-xs flex items-start space-x-2 font-mono">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{error}</span>
-          </div>
+          isPrivateRepo ? (
+            <div className="mt-4 p-4 bg-amber-950/40 border border-amber-500/50 rounded-xl text-amber-200 text-xs space-y-2.5 font-mono shadow-lg shadow-amber-950/20">
+              <div className="flex items-center space-x-2 text-amber-400 font-bold text-sm">
+                <Lock className="w-4 h-4 shrink-0 text-amber-400" />
+                <span>Private Repository Detected</span>
+              </div>
+              <p className="text-amber-200/90 leading-relaxed font-sans text-xs">
+                {error}
+              </p>
+              <div className="pt-1 flex flex-wrap items-center gap-3 font-sans">
+                <a
+                  href="https://github.com/settings/tokens/new?scopes=repo&description=RepoMind-Code-Archaeologist"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition text-xs font-medium"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>Generate Token on GitHub (Pre-selected repo scope)</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 p-3 bg-red-950/40 border border-red-800/60 rounded-xl text-red-300 text-xs flex items-start space-x-2 font-mono">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )
         )}
 
         <div className="mt-6 pt-5 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4">

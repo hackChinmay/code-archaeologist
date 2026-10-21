@@ -511,13 +511,27 @@ class RepositoryService:
                     "Proceeding with public web archive download."
                 )
             elif meta_res.status_code == 404:
+                if not token:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=(
+                            f"Private repository: '{owner}/{repo_name}' is private or does not exist. "
+                            "Please enter your GitHub Personal Access Token to analyze this private repository."
+                        ),
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=(
+                            f"Private repository: Access denied for '{owner}/{repo_name}'. "
+                            "The provided GitHub token does not have access or is missing the 'repo' scope. "
+                            "Please ensure your token has permission to read this private repository."
+                        ),
+                    )
+            elif meta_res.status_code == 401:
                 raise HTTPException(
-                    status_code=404,
-                    detail=(
-                        f"GitHub repository '{owner}/{repo_name}' was not found (HTTP 404). "
-                        "Please verify the repository URL. If this is a private repository, click '+ Add GitHub Token' "
-                        "to supply a Personal Access Token with repository read permissions."
-                    ),
+                    status_code=401,
+                    detail="Authentication failed: Invalid or expired GitHub Personal Access Token. Please verify your token.",
                 )
             del meta_res
         except HTTPException:
@@ -628,13 +642,27 @@ class RepositoryService:
                     detail="GitHub API rate limit exceeded. Please enter a Personal Access Token under '+ Add GitHub Token' or set GITHUB_TOKEN on Render.",
                 )
             if tree_res.status_code == 404:
+                if not token:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=(
+                            f"Private repository: '{owner}/{repo_name}' is private or does not exist. "
+                            "Please enter your GitHub Personal Access Token to analyze this private repository."
+                        ),
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=(
+                            f"Private repository: Access denied for '{owner}/{repo_name}'. "
+                            "The provided GitHub token does not have access or is missing the 'repo' scope. "
+                            "Please ensure your token has permission to read this private repository."
+                        ),
+                    )
+            if tree_res.status_code == 401:
                 raise HTTPException(
-                    status_code=404,
-                    detail=(
-                        f"GitHub repository '{owner}/{repo_name}' was not found (HTTP 404). "
-                        "Please verify the repository URL. If this is a private repository, click '+ Add GitHub Token' "
-                        "to supply a Personal Access Token with repository read permissions."
-                    ),
+                    status_code=401,
+                    detail="Authentication failed: Invalid or expired GitHub Personal Access Token. Please verify your token.",
                 )
             raise HTTPException(status_code=400, detail=f"Failed to retrieve repository git tree from GitHub (HTTP {tree_res.status_code}).")
 
