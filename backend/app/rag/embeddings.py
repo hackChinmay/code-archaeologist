@@ -92,20 +92,21 @@ class EmbeddingService:
                 return all_embeddings
             except Exception as e:
                 logger.warning(f"ONNX embedding failed or timed out ({e}); using fast deterministic pseudo-embeddings.")
-            import hashlib
-            dim = 384
-            fallback_embeddings = []
-            for doc in documents:
-                vec = [0.0] * dim
-                words = doc.split()
-                for w in words:
-                    h = int(hashlib.md5(w.encode("utf-8", errors="ignore")).hexdigest(), 16)
-                    idx = h % dim
-                    val = ((h >> 8) % 1000) / 1000.0 - 0.5
-                    vec[idx] += val
-                norm = sum(x * x for x in vec) ** 0.5 or 1.0
-                fallback_embeddings.append([x / norm for x in vec])
-            return fallback_embeddings
+
+        import hashlib
+        dim = 384
+        fallback_embeddings = []
+        for doc in documents:
+            vec = [0.0] * dim
+            words = doc.split()
+            for w in words:
+                h = int(hashlib.md5(w.encode("utf-8", errors="ignore")).hexdigest(), 16)
+                idx = h % dim
+                val = ((h >> 8) % 1000) / 1000.0 - 0.5
+                vec[idx] += val
+            norm = sum(x * x for x in vec) ** 0.5 or 1.0
+            fallback_embeddings.append([x / norm for x in vec])
+        return fallback_embeddings
 
 
 try:
