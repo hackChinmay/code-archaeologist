@@ -77,20 +77,21 @@ class EmbeddingService:
                 logger.warning(f"Google GenAI embedding failed ({e}); falling back to local ChromaDB ONNX.")
 
         # Fallback: ChromaDB's shared built-in ONNX all-MiniLM-L6-v2 embedding function
-        try:
-            fn = get_shared_onnx_embedding_function()
-            # Process in small batches of 16 to prevent ONNX activation memory spikes on 512MB RAM
-            all_embeddings: List[List[float]] = []
-            onnx_batch = 16
-            for i in range(0, len(documents), onnx_batch):
-                batch_slice = documents[i:i + onnx_batch]
-                emb_slice = fn(batch_slice)
-                all_embeddings.extend(emb_slice)
-                del batch_slice
-            gc.collect()
-            return all_embeddings
-        except Exception as e:
-            logger.warning(f"ONNX embedding failed or timed out ({e}); using fast deterministic pseudo-embeddings.")
+        if os.getenv("DISABLE_ONNX", "").lower() not in ("true", "1", "yes"):
+            try:
+                fn = get_shared_onnx_embedding_function()
+                # Process in small batches of 16 to prevent ONNX activation memory spikes on 512MB RAM
+                all_embeddings: List[List[float]] = []
+                onnx_batch = 16
+                for i in range(0, len(documents), onnx_batch):
+                    batch_slice = documents[i:i + onnx_batch]
+                    emb_slice = fn(batch_slice)
+                    all_embeddings.extend(emb_slice)
+                    del batch_slice
+                gc.collect()
+                return all_embeddings
+            except Exception as e:
+                logger.warning(f"ONNX embedding failed or timed out ({e}); using fast deterministic pseudo-embeddings.")
             import hashlib
             dim = 384
             fallback_embeddings = []

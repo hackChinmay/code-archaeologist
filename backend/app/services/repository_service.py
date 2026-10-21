@@ -8,6 +8,7 @@ import requests
 import io
 import zipfile
 import gc
+import threading
 from typing import List, Dict, Any, Optional, Set, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -736,8 +737,7 @@ class RepositoryService:
         default_branch: str = "main",
     ) -> Dict[str, Any]:
         """Incremental Tree-sitter AST parse, dependency analysis, chunking, and database insertion."""
-        # 1. Reset collection in ChromaDB and clear existing records in DB
-        self.chroma_service.reset_collection(repo_id)
+        # 1. Clear existing database records for this repository
         self._clean_repo_records(db, repo_id)
 
         # 2. Incremental per-file processing
@@ -758,9 +758,7 @@ class RepositoryService:
         pending_files: List[FileModel] = []
         pending_symbols: List[SymbolModel] = []
         pending_chunks: List[CodeChunkModel] = []
-        CHROMA_BATCH_SIZE = 15
         MAX_CHROMA_CHUNKS = 30
-        chroma_chunks_indexed = 0
 
         for f_idx, f in enumerate(raw_files):
             total_files += 1
@@ -810,15 +808,10 @@ class RepositoryService:
             total_classes_count += sum(1 for s in symbols if s.get("type") == "class")
             total_functions_count += sum(1 for s in symbols if s.get("type") in ["function", "method"])
 
-            # Buffer high-value chunks for ChromaDB vector indexing (bounded to MAX_CHROMA_CHUNKS)
-            if file_chunks and chroma_chunks_indexed < MAX_CHROMA_CHUNKS:
-                slots_left = MAX_CHROMA_CHUNKS - chroma_chunks_indexed
-                to_embed = file_chunks[:slots_left]
-                chunk_buffer.extend(to_embed)
-                chroma_chunks_indexed += len(to_embed)
-                if len(chunk_buffer) >= CHROMA_BATCH_SIZE:
-                    self.chroma_service.add_chunks_batch(repo_id, chunk_buffer)
-                    chunk_buffer.clear()
+            # Buffer high-value chunks for asynchronous background ChromaDB vector indexing (bounded to MAX_CHROMA_CHUNKS)
+            if file_chunks and len(chunk_buffer) < MAX_CHROMA_CHUNKS:
+                slots_left = MAX_CHROMA_CHUNKS - len(chunk_buffer)
+                chunk_buffer.extend(file_chunks[:slots_left])
 
             # Buffer FileModel for atomic commit
             pending_files.append(FileModel(
@@ -867,11 +860,6 @@ class RepositoryService:
                 status_code=400,
                 detail="No eligible source code files found in repository within memory limits.",
             )
-
-        # Flush any remaining chunks in buffer to ChromaDB
-        if chunk_buffer:
-            self.chroma_service.add_chunks_batch(repo_id, chunk_buffer)
-            chunk_buffer.clear()
 
         # 3. Static Dependency Analysis
         dependencies = self.static_analyzer.analyze_dependencies_from_imports(
@@ -947,6 +935,23 @@ class RepositoryService:
             db.rollback()
             logger.error(f"Failed to commit repository {repo_id} to database: {exc}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Database commit failed: {str(exc)}")
+
+        # 7. Asynchronously index high-value chunks into ChromaDB in background thread so HTTP response returns instantly
+        chunks_to_index = list(chunk_buffer)
+        def _bg_chroma_worker(svc: ChromaService, rid: str, chunks_data: List[Dict[str, Any]]):
+            try:
+                svc.reset_collection(rid)
+                if chunks_data:
+                    svc.add_chunks_batch(rid, chunks_data)
+                logger.info(f"Background ChromaDB vector indexing completed for {rid} ({len(chunks_data)} chunks).")
+            except Exception as exc:
+                logger.warning(f"Background ChromaDB vector indexing error for {rid}: {exc}")
+
+        threading.Thread(
+            target=_bg_chroma_worker,
+            args=(self.chroma_service, repo_id, chunks_to_index),
+            daemon=True,
+        ).start()
 
         # Explicit garbage collection to release intermediate buffers
         gc.collect()
