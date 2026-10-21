@@ -758,7 +758,9 @@ class RepositoryService:
         pending_files: List[FileModel] = []
         pending_symbols: List[SymbolModel] = []
         pending_chunks: List[CodeChunkModel] = []
-        CHROMA_BATCH_SIZE = 20
+        CHROMA_BATCH_SIZE = 15
+        MAX_CHROMA_CHUNKS = 30
+        chroma_chunks_indexed = 0
 
         for f_idx, f in enumerate(raw_files):
             total_files += 1
@@ -808,9 +810,12 @@ class RepositoryService:
             total_classes_count += sum(1 for s in symbols if s.get("type") == "class")
             total_functions_count += sum(1 for s in symbols if s.get("type") in ["function", "method"])
 
-            # Buffer chunks and write in bounded batches
-            if file_chunks:
-                chunk_buffer.extend(file_chunks)
+            # Buffer high-value chunks for ChromaDB vector indexing (bounded to MAX_CHROMA_CHUNKS)
+            if file_chunks and chroma_chunks_indexed < MAX_CHROMA_CHUNKS:
+                slots_left = MAX_CHROMA_CHUNKS - chroma_chunks_indexed
+                to_embed = file_chunks[:slots_left]
+                chunk_buffer.extend(to_embed)
+                chroma_chunks_indexed += len(to_embed)
                 if len(chunk_buffer) >= CHROMA_BATCH_SIZE:
                     self.chroma_service.add_chunks_batch(repo_id, chunk_buffer)
                     chunk_buffer.clear()
