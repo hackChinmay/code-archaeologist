@@ -98,7 +98,9 @@ export default function App() {
       const msg = err.message || '';
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed')) {
         setError(
-          'Unable to reach backend service (Failed to fetch). On Render Free Tier, the backend spins down after inactivity and requires ~50 seconds to wake up. Please wait 30 seconds and click Analyze again.'
+          params.url && !params.githubToken
+            ? 'Unable to reach backend service (Failed to fetch). If this is a private repository, please enter your GitHub Personal Access Token under "+ Add GitHub Token". Otherwise, wait 30 seconds for the backend to wake up and try again.'
+            : 'Unable to reach backend service (Failed to fetch). On Render Free Tier, the backend spins down after inactivity and requires ~50 seconds to wake up. Please wait 30 seconds and click Analyze again.'
         );
       } else {
         setError(msg || 'Analysis failed. Please check repository URL or rate limits.');
