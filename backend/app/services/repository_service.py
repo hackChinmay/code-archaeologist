@@ -393,12 +393,16 @@ class RepositoryService:
 
     def _clean_repo_records(self, db: Session, repo_id: str):
         """Purge any previous records for a repository ID to guarantee clean state and prevent memory leaks."""
-        db.query(SymbolModel).filter(SymbolModel.repository_id == repo_id).delete()
-        db.query(CodeChunkModel).filter(CodeChunkModel.repository_id == repo_id).delete()
-        db.query(DependencyModel).filter(DependencyModel.repository_id == repo_id).delete()
-        db.query(FileModel).filter(FileModel.repository_id == repo_id).delete()
-        db.query(RepositoryModel).filter(RepositoryModel.id == repo_id).delete()
-        db.commit()
+        try:
+            db.query(SymbolModel).filter(SymbolModel.repository_id == repo_id).delete()
+            db.query(CodeChunkModel).filter(CodeChunkModel.repository_id == repo_id).delete()
+            db.query(DependencyModel).filter(DependencyModel.repository_id == repo_id).delete()
+            db.query(FileModel).filter(FileModel.repository_id == repo_id).delete()
+            db.query(RepositoryModel).filter(RepositoryModel.id == repo_id).delete()
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            logger.warning(f"Error purging old records for {repo_id}: {exc}")
 
     def _ingest_local_files(self, db: Session, local_files: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Ingest uploaded files incrementally without loading all files simultaneously into memory."""
@@ -732,6 +736,9 @@ class RepositoryService:
         chunk_idx = 0
         total_files = 0
         chunk_buffer: List[Dict[str, Any]] = []
+        pending_files: List[FileModel] = []
+        pending_symbols: List[SymbolModel] = []
+        pending_chunks: List[CodeChunkModel] = []
         CHROMA_BATCH_SIZE = 20
 
         for f_idx, f in enumerate(raw_files):
@@ -789,8 +796,8 @@ class RepositoryService:
                     self.chroma_service.add_chunks_batch(repo_id, chunk_buffer)
                     chunk_buffer.clear()
 
-            # Persist FileModel
-            db.add(FileModel(
+            # Buffer FileModel for atomic commit
+            pending_files.append(FileModel(
                 id=f["id"],
                 repository_id=repo_id,
                 path=path,
@@ -800,10 +807,10 @@ class RepositoryService:
                 content=content,
             ))
 
-            # Persist SymbolModels
+            # Buffer SymbolModels for atomic commit
             for s in symbols:
                 sym_idx += 1
-                db.add(SymbolModel(
+                pending_symbols.append(SymbolModel(
                     id=f"sym-{repo_id}-{sym_idx}",
                     repository_id=repo_id,
                     file_id=f["id"],
@@ -816,9 +823,9 @@ class RepositoryService:
                     detected_from=s.get("detected_from", "Tree-sitter AST"),
                 ))
 
-            # Persist CodeChunkModels
+            # Buffer CodeChunkModels for atomic commit
             for c in file_chunks:
-                db.add(CodeChunkModel(
+                pending_chunks.append(CodeChunkModel(
                     id=c["id"],
                     repository_id=repo_id,
                     file_id=f["id"],
@@ -828,11 +835,6 @@ class RepositoryService:
                     end_line=c["end_line"],
                     content=c["content"],
                 ))
-
-            # Periodically flush every 10 files to keep memory usage low
-            if (f_idx + 1) % 10 == 0:
-                db.flush()
-                gc.collect()
 
             del symbols, file_chunks, content
 
@@ -853,16 +855,6 @@ class RepositoryService:
             file_paths=file_paths,
             file_import_map=file_import_map,
         )
-
-        for d in dependencies:
-            db.add(DependencyModel(
-                id=d["id"],
-                repository_id=repo_id,
-                source=d["source"],
-                target=d["target"],
-                relationship_type=d["relationship_type"],
-                category=d.get("category", "internal"),
-            ))
 
         # 4. Language Breakdown
         lang_colors = {
@@ -907,8 +899,30 @@ class RepositoryService:
                 "languages": languages,
             },
         )
-        db.add(repo_model)
-        db.commit()
+
+        # 6. Atomic database insertion in a single fast transaction
+        try:
+            for pf in pending_files:
+                db.add(pf)
+            for ps in pending_symbols:
+                db.add(ps)
+            for pc in pending_chunks:
+                db.add(pc)
+            for d in dependencies:
+                db.add(DependencyModel(
+                    id=d["id"],
+                    repository_id=repo_id,
+                    source=d["source"],
+                    target=d["target"],
+                    relationship_type=d["relationship_type"],
+                    category=d.get("category", "internal"),
+                ))
+            db.add(repo_model)
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            logger.error(f"Failed to commit repository {repo_id} to database: {exc}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Database commit failed: {str(exc)}")
 
         # Explicit garbage collection to release intermediate buffers
         gc.collect()

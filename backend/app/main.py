@@ -208,11 +208,14 @@ def analyze_repository(req: AnalyzeRequest, db: Session = Depends(get_db)):
         )
         return repo
     except HTTPException:
+        db.rollback()
         raise
     except ValueError as exc:
+        db.rollback()
         logger.warning(f"Validation error during analysis: {exc}")
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
+        db.rollback()
         logger.error(f"Analysis failed: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(exc)}")
 
