@@ -510,8 +510,15 @@ class RepositoryService:
                     f"GitHub REST API rate limit reached on api.github.com for {owner}/{repo_name}. "
                     "Proceeding with public web archive download."
                 )
-            elif meta_res.status_code == 404 and token:
-                raise HTTPException(status_code=404, detail="GitHub repository not found or private.")
+            elif meta_res.status_code == 404:
+                raise HTTPException(
+                    status_code=404,
+                    detail=(
+                        f"GitHub repository '{owner}/{repo_name}' was not found (HTTP 404). "
+                        "Please verify the repository URL. If this is a private repository, click '+ Add GitHub Token' "
+                        "to supply a Personal Access Token with repository read permissions."
+                    ),
+                )
             del meta_res
         except HTTPException:
             raise
@@ -520,13 +527,17 @@ class RepositoryService:
 
         # Attempt downloading repository archive in a single request (avoids 60+ API calls and rate limit exhaustion)
         zip_bytes = None
-        zip_candidates = [
+        zip_candidates = []
+        if token:
+            zip_candidates.append(f"https://api.github.com/repos/{owner}/{repo_name}/zipball/{default_branch}")
+            zip_candidates.append(f"https://api.github.com/repos/{owner}/{repo_name}/zipball/master")
+        zip_candidates.extend([
             f"https://github.com/{owner}/{repo_name}/archive/refs/heads/{default_branch}.zip",
             f"https://codeload.github.com/{owner}/{repo_name}/zip/refs/heads/{default_branch}",
             f"https://github.com/{owner}/{repo_name}/archive/refs/heads/master.zip",
             f"https://codeload.github.com/{owner}/{repo_name}/zip/refs/heads/master",
             f"https://api.github.com/repos/{owner}/{repo_name}/zipball/{default_branch}",
-        ]
+        ])
         for z_url in zip_candidates:
             try:
                 z_res = requests.get(z_url, headers=headers, timeout=25, allow_redirects=True)
@@ -615,6 +626,15 @@ class RepositoryService:
                 raise HTTPException(
                     status_code=429,
                     detail="GitHub API rate limit exceeded. Please enter a Personal Access Token under '+ Add GitHub Token' or set GITHUB_TOKEN on Render.",
+                )
+            if tree_res.status_code == 404:
+                raise HTTPException(
+                    status_code=404,
+                    detail=(
+                        f"GitHub repository '{owner}/{repo_name}' was not found (HTTP 404). "
+                        "Please verify the repository URL. If this is a private repository, click '+ Add GitHub Token' "
+                        "to supply a Personal Access Token with repository read permissions."
+                    ),
                 )
             raise HTTPException(status_code=400, detail=f"Failed to retrieve repository git tree from GitHub (HTTP {tree_res.status_code}).")
 
