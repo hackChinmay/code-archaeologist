@@ -5,6 +5,14 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/:match*",
+      "destination": "https://code-archaeologist-backend.onrender.com/api/:match*"
+    },
+    {
+      "source": "/health",
+      "destination": "https://code-archaeologist-backend.onrender.com/health"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

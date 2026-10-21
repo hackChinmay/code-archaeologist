@@ -11,7 +11,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.12.10
       - key: ALLOWED_ORIGINS
-        value: http://localhost:3000,http://localhost:5173
+        value: http://localhost:3000,http://localhost:5173,https://*.vercel.app,*
       - key: DATABASE_URL
         value: sqlite:///./code_archaeologist.db
       - key: CHROMA_PERSIST_DIR

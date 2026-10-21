@@ -95,7 +95,14 @@ export default function App() {
       await selectRepository(newRepo.id);
       setActiveTab('pipeline');
     } catch (err: any) {
-      setError(err.message || 'Analysis failed. Please check repository URL or rate limits.');
+      const msg = err.message || '';
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed')) {
+        setError(
+          'Unable to reach backend service (Failed to fetch). On Render Free Tier, the backend spins down after inactivity and requires ~50 seconds to wake up. Please wait 30 seconds and click Analyze again.'
+        );
+      } else {
+        setError(msg || 'Analysis failed. Please check repository URL or rate limits.');
+      }
     } finally {
       setIsLoading(false);
     }

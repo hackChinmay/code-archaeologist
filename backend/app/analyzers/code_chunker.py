@@ -21,8 +21,12 @@ class CodeChunker:
         file_id = file.get("id")
         current_idx = start_chunk_idx
 
+        MAX_CHUNKS_PER_FILE = 20
+
         if file_symbols:
             for sym in file_symbols:
+                if len(chunks) >= MAX_CHUNKS_PER_FILE:
+                    break
                 start_l = max(1, sym.get("start_line", 1))
                 end_l = min(len(lines), sym.get("end_line", len(lines)))
                 chunk_lines = lines[start_l - 1:end_l]
@@ -46,6 +50,8 @@ class CodeChunker:
             # Sliding window chunking for files with no class/function symbols (e.g. config, sql, scripts)
             step = 40
             for start_idx in range(0, len(lines), step):
+                if len(chunks) >= MAX_CHUNKS_PER_FILE:
+                    break
                 end_idx = min(len(lines), start_idx + max_chunk_lines)
                 window_content = "\n".join(lines[start_idx:end_idx])
                 if window_content.strip():

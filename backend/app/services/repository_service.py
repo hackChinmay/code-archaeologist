@@ -4,8 +4,9 @@ import json
 import time
 import base64
 import logging
-import datetime
 import requests
+import io
+import zipfile
 import gc
 from typing import List, Dict, Any, Optional, Set, Tuple
 from fastapi import HTTPException
@@ -501,7 +502,89 @@ class RepositoryService:
         desc = meta.get("description", "GitHub repository")
         del meta, meta_res
 
-        # Fetch Git Tree recursively
+        # Attempt downloading repository archive in a single request (avoids 60+ API calls and rate limit exhaustion)
+        zip_bytes = None
+        zip_candidates = [
+            f"https://github.com/{owner}/{repo_name}/archive/refs/heads/{default_branch}.zip",
+            f"https://api.github.com/repos/{owner}/{repo_name}/zipball/{default_branch}",
+        ]
+        for z_url in zip_candidates:
+            try:
+                z_res = requests.get(z_url, headers=headers, timeout=25)
+                if z_res.status_code == 200 and len(z_res.content) > 100:
+                    zip_bytes = z_res.content
+                    del z_res
+                    break
+            except Exception as e:
+                logger.debug(f"Zip download from {z_url} failed: {e}")
+
+        if zip_bytes:
+            def generate_zip_stream():
+                nonlocal zip_bytes
+                total_downloaded_bytes = 0
+                file_idx = 0
+                zf = zipfile.ZipFile(io.BytesIO(zip_bytes))
+                names = zf.namelist()
+                for name in names:
+                    if name.endswith("/") or "/" not in name:
+                        continue
+                    # Strip root folder (e.g. repo-main/)
+                    rel_path = "/".join(name.split("/")[1:])
+                    if not rel_path:
+                        continue
+                    zinfo = zf.getinfo(name)
+                    blob_size = zinfo.file_size
+                    ok, _ = is_eligible_file(rel_path, size=blob_size)
+                    if not ok:
+                        continue
+
+                    try:
+                        content = zf.read(name).decode("utf-8", errors="replace")
+                    except Exception:
+                        continue
+
+                    if "\x00" in content:
+                        del content
+                        continue
+
+                    content_bytes_len = len(content.encode("utf-8", errors="ignore"))
+                    if content_bytes_len > max_file_size:
+                        content = content[:max_file_size] + "\n// [Truncated: Exceeded file size limit]"
+                        content_bytes_len = len(content)
+
+                    total_downloaded_bytes += content_bytes_len
+                    if total_downloaded_bytes > max_repo_size:
+                        del content
+                        break
+
+                    file_idx += 1
+                    if file_idx > max_files:
+                        break
+
+                    yield {
+                        "id": f"f-{repo_id}-{file_idx}",
+                        "repository_id": repo_id,
+                        "path": rel_path,
+                        "name": os.path.basename(rel_path),
+                        "language": self._detect_language(rel_path),
+                        "size": content_bytes_len,
+                        "content": content,
+                    }
+                del zip_bytes, zf
+                gc.collect()
+
+            return self._process_and_persist(
+                db=db,
+                repo_id=repo_id,
+                repo_name=repo_name,
+                owner=owner,
+                url=url,
+                default_branch=default_branch,
+                description=desc,
+                raw_files=generate_zip_stream(),
+            )
+
+        # Fallback: Fetch Git Tree recursively and individual blobs
         tree_url = f"https://api.github.com/repos/{owner}/{repo_name}/git/trees/{default_branch}?recursive=1"
         try:
             tree_res = requests.get(tree_url, headers=headers, timeout=20)
