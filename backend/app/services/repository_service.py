@@ -483,38 +483,52 @@ class RepositoryService:
         max_repo_size = get_max_repo_total_size()
 
         # Fetch files from GitHub REST API
-        headers = {"Accept": "application/vnd.github.v3+json"}
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "RepoMind-Code-Archaeologist",
+        }
         token = github_token or os.getenv("GITHUB_TOKEN")
         if token:
             headers["Authorization"] = f"Bearer {token}"
 
         api_url = f"https://api.github.com/repos/{owner}/{repo_name}"
+        default_branch = "main"
+        desc = f"GitHub repository {owner}/{repo_name}"
+        rate_limit_hit = False
+
         try:
-            meta_res = requests.get(api_url, headers=headers, timeout=15)
+            meta_res = requests.get(api_url, headers=headers, timeout=10)
+            if meta_res.status_code == 200:
+                meta = meta_res.json()
+                default_branch = meta.get("default_branch", "main")
+                desc = meta.get("description") or desc
+                del meta
+            elif meta_res.status_code == 403:
+                rate_limit_hit = True
+                logger.warning(
+                    f"GitHub REST API rate limit reached on api.github.com for {owner}/{repo_name}. "
+                    "Proceeding with public web archive download."
+                )
+            elif meta_res.status_code == 404 and token:
+                raise HTTPException(status_code=404, detail="GitHub repository not found or private.")
+            del meta_res
+        except HTTPException:
+            raise
         except Exception as e:
-            raise HTTPException(status_code=502, detail=f"Failed to connect to GitHub API: {str(e)}")
-
-        if meta_res.status_code == 404:
-            raise HTTPException(status_code=404, detail="GitHub repository not found or private.")
-        if meta_res.status_code == 403:
-            raise HTTPException(status_code=429, detail="GitHub API rate limit exceeded or access forbidden.")
-        if meta_res.status_code != 200:
-            raise HTTPException(status_code=400, detail=f"GitHub API error: HTTP {meta_res.status_code}")
-
-        meta = meta_res.json()
-        default_branch = meta.get("default_branch", "main")
-        desc = meta.get("description", "GitHub repository")
-        del meta, meta_res
+            logger.warning(f"GitHub metadata check failed ({e}); falling back to direct archive fetch.")
 
         # Attempt downloading repository archive in a single request (avoids 60+ API calls and rate limit exhaustion)
         zip_bytes = None
         zip_candidates = [
             f"https://github.com/{owner}/{repo_name}/archive/refs/heads/{default_branch}.zip",
+            f"https://codeload.github.com/{owner}/{repo_name}/zip/refs/heads/{default_branch}",
+            f"https://github.com/{owner}/{repo_name}/archive/refs/heads/master.zip",
+            f"https://codeload.github.com/{owner}/{repo_name}/zip/refs/heads/master",
             f"https://api.github.com/repos/{owner}/{repo_name}/zipball/{default_branch}",
         ]
         for z_url in zip_candidates:
             try:
-                z_res = requests.get(z_url, headers=headers, timeout=25)
+                z_res = requests.get(z_url, headers=headers, timeout=25, allow_redirects=True)
                 if z_res.status_code == 200 and len(z_res.content) > 100:
                     zip_bytes = z_res.content
                     del z_res
@@ -596,7 +610,12 @@ class RepositoryService:
             raise HTTPException(status_code=502, detail=f"Failed to retrieve repository git tree: {str(e)}")
 
         if tree_res.status_code != 200:
-            raise HTTPException(status_code=400, detail="Failed to retrieve repository git tree from GitHub.")
+            if rate_limit_hit or tree_res.status_code == 403:
+                raise HTTPException(
+                    status_code=429,
+                    detail="GitHub API rate limit exceeded. Please enter a Personal Access Token under '+ Add GitHub Token' or set GITHUB_TOKEN on Render.",
+                )
+            raise HTTPException(status_code=400, detail=f"Failed to retrieve repository git tree from GitHub (HTTP {tree_res.status_code}).")
 
         tree_data = tree_res.json().get("tree", [])
 
