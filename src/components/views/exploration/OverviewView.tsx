@@ -3,14 +3,13 @@ import {
   FolderTree,
   FileCode,
   Binary,
-  Layers,
   Network,
   Cpu,
   ArrowRight,
   BookOpen,
   GitBranch,
   ShieldCheck,
-  Sparkles,
+  Search,
 } from 'lucide-react';
 import type { Repository, RepoFile } from '../../../types/index.ts';
 
@@ -28,21 +27,21 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onSelectFile,
 }) => {
   return (
-    <div className="max-w-6xl mx-auto py-6 px-4 space-y-8">
+    <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 space-y-6">
       {/* Top Banner: Project Title and AI Summary */}
-      <div className="bg-gradient-to-br from-slate-900 via-[#0e1626] to-[#090d16] border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6 relative overflow-hidden shadow-xl">
+      <div className="bg-[#262C28] border border-[#414A43] rounded-lg p-5 sm:p-6 space-y-5">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-medium">
-                {repo.defaultBranch}
+          <div className="space-y-1.5 min-w-0">
+            <div className="flex items-center space-x-2 text-xs font-mono">
+              <span className="px-2 py-0.5 rounded bg-[#202522] text-[#B1B7B1] border border-[#343B36]">
+                branch: {repo.defaultBranch}
               </span>
-              <span className="text-xs text-slate-400 font-mono">@{repo.owner}</span>
+              <span className="text-[#858E86]">@{repo.owner}</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-semibold text-[#F1F0E9] tracking-tight">
               {repo.name}
             </h1>
-            <p className="text-sm text-slate-300 max-w-3xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#B1B7B1] max-w-3xl leading-relaxed">
               {repo.description}
             </p>
           </div>
@@ -50,96 +49,95 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           <div className="flex flex-wrap gap-2 shrink-0">
             <button
               onClick={() => onNavigate('assistant')}
-              className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-xs px-3.5 py-2 rounded-lg transition flex items-center space-x-1.5 shadow-md shadow-cyan-500/20"
+              className="bg-[#78A887] hover:bg-[#8AB898] text-[#171A19] font-medium text-xs px-3.5 py-2 rounded-md transition flex items-center space-x-1.5 cursor-pointer shadow-xs"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Ask AI About Repo</span>
+              <span>Ask Codebase Assistant</span>
             </button>
             <button
               onClick={() => onNavigate('architecture')}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3.5 py-2 rounded-lg transition flex items-center space-x-1.5 border border-slate-700"
+              className="bg-[#2B322D] hover:bg-[#343B36] text-[#F1F0E9] text-xs px-3.5 py-2 rounded-md transition flex items-center space-x-1.5 border border-[#414A43] cursor-pointer"
             >
-              <Network className="w-3.5 h-3.5 text-cyan-400" />
-              <span>View Architecture</span>
+              <Network className="w-3.5 h-3.5 text-[#78A887]" />
+              <span>Architecture &amp; Flow</span>
             </button>
           </div>
         </div>
 
-        {/* AI-Generated Project & Architecture Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-800/80">
-          <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-2">
-            <div className="flex items-center space-x-2 text-xs font-bold text-cyan-300 uppercase tracking-wider font-mono">
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>Grounded Project Purpose</span>
+        {/* Grounded Summaries */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-4 border-t border-[#343B36]">
+          <div className="bg-[#202522] border border-[#343B36] rounded-md p-3.5 space-y-1.5">
+            <div className="flex items-center space-x-2 text-xs font-semibold text-[#B9D9BE] font-mono">
+              <BookOpen className="w-3.5 h-3.5 text-[#78A887]" />
+              <span>Grounded Codebase Purpose</span>
             </div>
-            <p className="text-xs text-slate-300 leading-relaxed font-sans">
+            <p className="text-xs text-[#B1B7B1] leading-relaxed">
               {repo.summary}
             </p>
           </div>
 
-          <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-2">
-            <div className="flex items-center space-x-2 text-xs font-bold text-teal-300 uppercase tracking-wider font-mono">
-              <Network className="w-3.5 h-3.5" />
+          <div className="bg-[#202522] border border-[#343B36] rounded-md p-3.5 space-y-1.5">
+            <div className="flex items-center space-x-2 text-xs font-semibold text-[#B9D9BE] font-mono">
+              <Network className="w-3.5 h-3.5 text-[#78A887]" />
               <span>Architectural Organization</span>
             </div>
-            <p className="text-xs text-slate-300 leading-relaxed font-sans">
+            <p className="text-xs text-[#B1B7B1] leading-relaxed">
               {repo.architectureSummary}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Numerical Stats Cards (All derived from actual analyzed data) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-1">
-          <p className="text-[11px] font-mono text-slate-400 uppercase">Files</p>
-          <p className="text-2xl font-bold text-white font-mono">{repo.stats.filesCount}</p>
-          <p className="text-[10px] text-slate-500 font-mono">Source code files</p>
+      {/* Compact Numerical Metric Panels */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        <div className="bg-[#262C28] border border-[#414A43] rounded-md p-3.5 space-y-1">
+          <p className="text-[10px] font-mono text-[#858E86] uppercase tracking-wide">Files</p>
+          <p className="text-xl font-semibold text-[#F1F0E9] font-mono">{repo.stats.filesCount}</p>
+          <p className="text-[10px] text-[#858E86]">Source code files</p>
         </div>
 
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-1">
-          <p className="text-[11px] font-mono text-slate-400 uppercase">Classes (AST)</p>
-          <p className="text-2xl font-bold text-cyan-400 font-mono">{repo.stats.classesCount}</p>
-          <p className="text-[10px] text-slate-500 font-mono">Classes &amp; interfaces</p>
+        <div className="bg-[#262C28] border border-[#414A43] rounded-md p-3.5 space-y-1">
+          <p className="text-[10px] font-mono text-[#858E86] uppercase tracking-wide">Classes (AST)</p>
+          <p className="text-xl font-semibold text-[#B9D9BE] font-mono">{repo.stats.classesCount}</p>
+          <p className="text-[10px] text-[#858E86]">Classes &amp; interfaces</p>
         </div>
 
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-1">
-          <p className="text-[11px] font-mono text-slate-400 uppercase">Functions</p>
-          <p className="text-2xl font-bold text-indigo-400 font-mono">{repo.stats.functionsCount}</p>
-          <p className="text-[10px] text-slate-500 font-mono">Methods &amp; handlers</p>
+        <div className="bg-[#262C28] border border-[#414A43] rounded-md p-3.5 space-y-1">
+          <p className="text-[10px] font-mono text-[#858E86] uppercase tracking-wide">Functions</p>
+          <p className="text-xl font-semibold text-[#F1F0E9] font-mono">{repo.stats.functionsCount}</p>
+          <p className="text-[10px] text-[#858E86]">Methods &amp; handlers</p>
         </div>
 
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-1">
-          <p className="text-[11px] font-mono text-slate-400 uppercase">Dependencies</p>
-          <p className="text-2xl font-bold text-amber-400 font-mono">{repo.stats.dependenciesCount}</p>
-          <p className="text-[10px] text-slate-500 font-mono">Import &amp; call edges</p>
+        <div className="bg-[#262C28] border border-[#414A43] rounded-md p-3.5 space-y-1">
+          <p className="text-[10px] font-mono text-[#858E86] uppercase tracking-wide">Dependencies</p>
+          <p className="text-xl font-semibold text-[#D6A85F] font-mono">{repo.stats.dependenciesCount}</p>
+          <p className="text-[10px] text-[#858E86]">Imports &amp; calls</p>
         </div>
 
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-1">
-          <p className="text-[11px] font-mono text-slate-400 uppercase">Lines of Code</p>
-          <p className="text-2xl font-bold text-emerald-400 font-mono">{repo.stats.linesOfCode}</p>
-          <p className="text-[10px] text-slate-500 font-mono">Clean source lines</p>
+        <div className="bg-[#262C28] border border-[#414A43] rounded-md p-3.5 space-y-1">
+          <p className="text-[10px] font-mono text-[#858E86] uppercase tracking-wide">Lines of Code</p>
+          <p className="text-xl font-semibold text-[#81C995] font-mono">{repo.stats.linesOfCode.toLocaleString()}</p>
+          <p className="text-[10px] text-[#858E86]">Executable lines</p>
         </div>
 
-        <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-1">
-          <p className="text-[11px] font-mono text-slate-400 uppercase">RAG Chunks</p>
-          <p className="text-2xl font-bold text-teal-400 font-mono">{repo.stats.chunksCount}</p>
-          <p className="text-[10px] text-slate-500 font-mono">ChromaDB indexed</p>
+        <div className="bg-[#262C28] border border-[#414A43] rounded-md p-3.5 space-y-1">
+          <p className="text-[10px] font-mono text-[#858E86] uppercase tracking-wide">RAG Chunks</p>
+          <p className="text-xl font-semibold text-[#B9D9BE] font-mono">{repo.stats.chunksCount}</p>
+          <p className="text-[10px] text-[#858E86]">ChromaDB indexed</p>
         </div>
       </div>
 
       {/* Languages Distribution */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-        <h2 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
-          Languages Distribution
+      <div className="bg-[#262C28] border border-[#414A43] rounded-lg p-5 space-y-3">
+        <h2 className="text-xs font-mono font-semibold text-[#F1F0E9] uppercase tracking-wider">
+          Language Breakdown
         </h2>
-        {/* Multi-color percentage bar */}
-        <div className="h-3 w-full rounded-full overflow-hidden flex bg-slate-800">
+        {/* Subtle multi-color bar */}
+        <div className="h-2 w-full rounded-full overflow-hidden flex bg-[#171A19] border border-[#343B36]">
           {repo.stats.languages.map((lang) => (
             <div
               key={lang.name}
               style={{ width: `${lang.percentage}%`, backgroundColor: lang.color }}
-              className="h-full transition-all duration-500"
+              className="h-full transition-all duration-300"
               title={`${lang.name}: ${lang.percentage}%`}
             ></div>
           ))}
@@ -148,33 +146,33 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           {repo.stats.languages.map((lang) => (
             <div key={lang.name} className="flex items-center space-x-2 text-xs">
               <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lang.color }}></span>
-              <span className="font-semibold text-slate-200">{lang.name}</span>
-              <span className="text-slate-400 font-mono">{lang.percentage}%</span>
-              <span className="text-slate-500 font-mono text-[10px]">({lang.filesCount} files)</span>
+              <span className="font-medium text-[#F1F0E9]">{lang.name}</span>
+              <span className="text-[#B1B7B1] font-mono">{lang.percentage}%</span>
+              <span className="text-[#858E86] font-mono text-[10px]">({lang.filesCount} files)</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Key Files and Detected Modules */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Key Files and Capabilities Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Important Files List */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider font-mono flex items-center space-x-2">
-              <FileCode className="w-4 h-4 text-cyan-400" />
+        <div className="bg-[#262C28] border border-[#414A43] rounded-lg p-5 space-y-3">
+          <div className="flex items-center justify-between border-b border-[#343B36] pb-2.5">
+            <h2 className="text-xs font-mono font-semibold text-[#F1F0E9] uppercase tracking-wider flex items-center space-x-2">
+              <FileCode className="w-3.5 h-3.5 text-[#78A887]" />
               <span>Key Source Modules</span>
             </h2>
             <button
               onClick={() => onNavigate('files')}
-              className="text-xs text-cyan-400 hover:underline flex items-center space-x-1 font-mono"
+              className="text-xs text-[#78A887] hover:underline flex items-center space-x-1 font-mono cursor-pointer"
             >
               <span>Explore all files</span>
               <ArrowRight className="w-3 h-3" />
             </button>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {files.slice(0, 6).map((file) => (
               <div
                 key={file.id}
@@ -182,80 +180,90 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   onSelectFile(file);
                   onNavigate('files');
                 }}
-                className="group cursor-pointer p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800/80 hover:border-cyan-500/40 transition flex items-center justify-between"
+                className="group cursor-pointer p-2.5 rounded-md bg-[#202522] hover:bg-[#2B322D] border border-[#343B36] hover:border-[#537B5D] transition flex items-center justify-between"
               >
-                <div className="space-y-0.5">
-                  <p className="text-xs font-semibold text-slate-200 font-mono group-hover:text-cyan-300 transition">
+                <div className="space-y-0.5 min-w-0 pr-2">
+                  <p className="text-xs font-mono font-medium text-[#F1F0E9] group-hover:text-[#B9D9BE] transition truncate">
                     {file.path}
                   </p>
-                  <p className="text-[10px] text-slate-500 font-mono">
-                    {file.language} &bull; {file.linesCount} lines &bull; {file.symbolsCount} symbols
+                  <p className="text-[10px] text-[#858E86] font-mono truncate">
+                    {file.language} · {file.linesCount} lines · {file.symbolsCount} symbols
                   </p>
                 </div>
-                <span className="text-[11px] font-mono text-cyan-400 opacity-0 group-hover:opacity-100 transition">
-                  View &rarr;
+                <span className="text-[11px] font-mono text-[#78A887] opacity-0 group-hover:opacity-100 transition shrink-0">
+                  Inspect &rarr;
                 </span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Quick Action Pathways */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-          <h2 className="text-sm font-bold text-white uppercase tracking-wider font-mono flex items-center space-x-2">
-            <Cpu className="w-4 h-4 text-teal-400" />
-            <span>Analysis Capabilities</span>
-          </h2>
+        {/* Analysis Tools Grid */}
+        <div className="bg-[#262C28] border border-[#414A43] rounded-lg p-5 space-y-3">
+          <div className="border-b border-[#343B36] pb-2.5">
+            <h2 className="text-xs font-mono font-semibold text-[#F1F0E9] uppercase tracking-wider flex items-center space-x-2">
+              <Cpu className="w-3.5 h-3.5 text-[#78A887]" />
+              <span>Analysis Workspaces</span>
+            </h2>
+          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div
               onClick={() => onNavigate('analysis')}
-              className="cursor-pointer p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-cyan-500/50 transition space-y-1 group"
+              className="cursor-pointer p-3 rounded-md bg-[#202522] border border-[#343B36] hover:border-[#537B5D] transition space-y-1 group"
             >
-              <Binary className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
-              <h3 className="text-xs font-semibold text-slate-200">AST Symbols</h3>
-              <p className="text-[10px] text-slate-400 leading-normal">
-                Inspect classes, methods, signatures, and docstrings.
+              <div className="flex items-center space-x-1.5">
+                <Binary className="w-3.5 h-3.5 text-[#78A887]" />
+                <h3 className="text-xs font-semibold text-[#F1F0E9] group-hover:text-[#B9D9BE]">AST Symbols</h3>
+              </div>
+              <p className="text-[11px] text-[#858E86] leading-normal">
+                Inspect classes, methods, AST signatures, and docstrings.
               </p>
             </div>
 
             <div
               onClick={() => onNavigate('architecture')}
-              className="cursor-pointer p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-teal-500/50 transition space-y-1 group"
+              className="cursor-pointer p-3 rounded-md bg-[#202522] border border-[#343B36] hover:border-[#537B5D] transition space-y-1 group"
             >
-              <Network className="w-4 h-4 text-teal-400 group-hover:scale-110 transition-transform" />
-              <h3 className="text-xs font-semibold text-slate-200">Architecture Graph</h3>
-              <p className="text-[10px] text-slate-400 leading-normal">
-                Interactive call graphs and module import relationships.
+              <div className="flex items-center space-x-1.5">
+                <Network className="w-3.5 h-3.5 text-[#78A887]" />
+                <h3 className="text-xs font-semibold text-[#F1F0E9] group-hover:text-[#B9D9BE]">Architecture Graph</h3>
+              </div>
+              <p className="text-[11px] text-[#858E86] leading-normal">
+                Interactive module call graphs and dependency flowcharts.
               </p>
             </div>
 
             <div
               onClick={() => onNavigate('search')}
-              className="cursor-pointer p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500/50 transition space-y-1 group"
+              className="cursor-pointer p-3 rounded-md bg-[#202522] border border-[#343B36] hover:border-[#537B5D] transition space-y-1 group"
             >
-              <FolderTree className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
-              <h3 className="text-xs font-semibold text-slate-200">Semantic Search</h3>
-              <p className="text-[10px] text-slate-400 leading-normal">
-                Natural query code retrieval powered by ChromaDB.
+              <div className="flex items-center space-x-1.5">
+                <Search className="w-3.5 h-3.5 text-[#78A887]" />
+                <h3 className="text-xs font-semibold text-[#F1F0E9] group-hover:text-[#B9D9BE]">Semantic Search</h3>
+              </div>
+              <p className="text-[11px] text-[#858E86] leading-normal">
+                Natural-language code snippet retrieval powered by ChromaDB.
               </p>
             </div>
 
             <div
               onClick={() => onNavigate('documentation')}
-              className="cursor-pointer p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500/50 transition space-y-1 group"
+              className="cursor-pointer p-3 rounded-md bg-[#202522] border border-[#343B36] hover:border-[#537B5D] transition space-y-1 group"
             >
-              <BookOpen className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
-              <h3 className="text-xs font-semibold text-slate-200">Generate Docs</h3>
-              <p className="text-[10px] text-slate-400 leading-normal">
-                Synthesize structured module documentation.
+              <div className="flex items-center space-x-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-[#78A887]" />
+                <h3 className="text-xs font-semibold text-[#F1F0E9] group-hover:text-[#B9D9BE]">Documentation</h3>
+              </div>
+              <p className="text-[11px] text-[#858E86] leading-normal">
+                Synthesize structured module and project documentation.
               </p>
             </div>
           </div>
 
-          <div className="p-3 bg-cyan-950/30 border border-cyan-900/40 rounded-xl flex items-center space-x-2 text-[11px] text-cyan-300 font-mono">
-            <ShieldCheck className="w-4 h-4 shrink-0 text-cyan-400" />
-            <span>All metrics and graphs computed deterministically from analyzed source code.</span>
+          <div className="p-2.5 bg-[#202522] border border-[#343B36] rounded-md flex items-center space-x-2 text-[11px] text-[#858E86] font-mono">
+            <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-[#81C995]" />
+            <span>All metrics extracted deterministically from parsed source code.</span>
           </div>
         </div>
       </div>

@@ -1029,42 +1029,42 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
   const isDark = theme === 'dark';
 
   return (
-    <div className={`h-full flex flex-col select-none relative ${isDark ? 'bg-[#06090f] text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`h-full flex flex-col select-none relative ${isDark ? 'bg-[#171A19] text-[#F1F0E9]' : 'bg-slate-50 text-slate-900'}`}>
       {/* 1. Header Toolbar */}
-      <div className={`border-b px-5 py-2.5 flex flex-wrap items-center justify-between gap-3 z-10 shrink-0 ${isDark ? 'bg-[#080d17] border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+      <div className={`border-b px-4 py-2 flex flex-wrap items-center justify-between gap-3 z-10 shrink-0 ${isDark ? 'bg-[#202522] border-[#343B36]' : 'bg-white border-slate-200 shadow-sm'}`}>
         {/* Title & Mode Switcher */}
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-2">
-            <div className={`p-2 rounded-xl ${isDark ? 'bg-cyan-950/80 text-cyan-400 border border-cyan-800/60' : 'bg-cyan-100 text-cyan-800 border border-cyan-200'}`}>
-              <Layers className="w-5 h-5" />
+            <div className={`p-1.5 rounded-md ${isDark ? 'bg-[#263A2D] text-[#78A887] border border-[#537B5D]' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'}`}>
+              <Layers className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h1 className="font-bold text-sm tracking-wide">ARCHITECTURE FLOWCHART</h1>
-                <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold border ${isDark ? 'bg-emerald-950/70 text-emerald-300 border-emerald-800/80' : 'bg-emerald-100 text-emerald-800 border-emerald-300'}`}>
+                <h1 className="font-semibold text-xs tracking-wide">ARCHITECTURE FLOWCHART</h1>
+                <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-medium border ${isDark ? 'bg-[#263A2D] text-[#81C995] border-[#537B5D]' : 'bg-emerald-100 text-emerald-800 border-emerald-300'}`}>
                   HIGH READABILITY
                 </span>
               </div>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <p className={`text-[11px] ${isDark ? 'text-[#858E86]' : 'text-slate-500'}`}>
                 Complete execution pipeline with decision branches, candidate repair, and AI explanation
               </p>
             </div>
           </div>
 
           {/* Mode Pill Toggle */}
-          <div className={`flex items-center p-0.5 rounded-lg border ml-2 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
+          <div className={`flex items-center p-0.5 rounded border ml-2 ${isDark ? 'bg-[#171A19] border-[#414A43]' : 'bg-slate-100 border-slate-200'}`}>
             <button
               onClick={() => {
                 setMode('pipeline');
                 setSelectedNodeId(null);
               }}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium font-mono transition flex items-center space-x-1.5 ${
+              className={`px-2.5 py-1 rounded text-xs font-medium font-mono transition flex items-center space-x-1.5 cursor-pointer ${
                 mode === 'pipeline'
                   ? isDark
-                    ? 'bg-cyan-600 text-white shadow-sm'
-                    : 'bg-white text-cyan-800 shadow-sm border border-slate-200'
+                    ? 'bg-[#263A2D] text-[#B9D9BE] border border-[#537B5D]'
+                    : 'bg-white text-emerald-800 shadow-sm border border-slate-200'
                   : isDark
-                  ? 'text-slate-400 hover:text-white'
+                  ? 'text-[#B1B7B1] hover:text-[#F1F0E9]'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -1076,13 +1076,13 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
                 setMode('repository');
                 setSelectedNodeId(null);
               }}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium font-mono transition flex items-center space-x-1.5 ${
+              className={`px-2.5 py-1 rounded text-xs font-medium font-mono transition flex items-center space-x-1.5 cursor-pointer ${
                 mode === 'repository'
                   ? isDark
-                    ? 'bg-cyan-600 text-white shadow-sm'
-                    : 'bg-white text-cyan-800 shadow-sm border border-slate-200'
+                    ? 'bg-[#263A2D] text-[#B9D9BE] border border-[#537B5D]'
+                    : 'bg-white text-emerald-800 shadow-sm border border-slate-200'
                   : isDark
-                  ? 'text-slate-400 hover:text-white'
+                  ? 'text-[#B1B7B1] hover:text-[#F1F0E9]'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -1098,62 +1098,62 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
           {!isSimulating ? (
             <button
               onClick={handleStartSimulation}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition active:scale-95"
+              className="flex items-center space-x-1.5 px-3 py-1 rounded text-xs font-mono font-medium bg-[#78A887] hover:bg-[#8AB898] text-[#171A19] transition cursor-pointer"
               title="Simulate execution flow through the entire diagram"
             >
-              <Play className="w-3.5 h-3.5 fill-white" />
+              <Play className="w-3.5 h-3.5 fill-[#171A19]" />
               <span>Simulate Flow</span>
             </button>
           ) : (
             <button
               onClick={handleStopSimulation}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-amber-600 hover:bg-amber-500 text-white shadow-sm transition animate-pulse"
+              className="flex items-center space-x-1.5 px-3 py-1 rounded text-xs font-mono font-medium bg-[#D6A85F] hover:bg-[#e6b566] text-[#171A19] transition cursor-pointer"
               title="Pause execution simulation"
             >
-              <Pause className="w-3.5 h-3.5 fill-white" />
-              <span>Stop Simulation ({activeStepIndex + 1}/{simulationSteps.length})</span>
+              <Pause className="w-3.5 h-3.5 fill-[#171A19]" />
+              <span>Stop ({activeStepIndex + 1}/{simulationSteps.length})</span>
             </button>
           )}
 
           {/* Theme Switcher */}
           <button
             onClick={() => setTheme(isDark ? 'light' : 'dark')}
-            className={`p-1.5 rounded-lg border text-xs transition ${
+            className={`p-1 rounded border text-xs transition cursor-pointer ${
               isDark
-                ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
+                ? 'bg-[#262C28] border-[#414A43] text-[#B1B7B1] hover:text-[#F1F0E9]'
                 : 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 shadow-sm'
             }`}
             title={`Switch to ${isDark ? 'Light' : 'Dark'} Theme`}
           >
-            {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-600" />}
+            {isDark ? <Sun className="w-3.5 h-3.5 text-[#D6A85F]" /> : <Moon className="w-3.5 h-3.5 text-slate-600" />}
           </button>
 
           {/* Zoom & Fit */}
-          <div className={`flex items-center rounded-lg border p-0.5 space-x-0.5 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+          <div className={`flex items-center rounded border p-0.5 space-x-0.5 ${isDark ? 'bg-[#171A19] border-[#414A43]' : 'bg-white border-slate-200 shadow-sm'}`}>
             <button
               onClick={handleZoomIn}
-              className={`p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 transition ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600'}`}
+              className={`p-1 rounded hover:bg-[#262C28] transition cursor-pointer ${isDark ? 'text-[#B1B7B1] hover:text-[#F1F0E9]' : 'text-slate-600'}`}
               title="Zoom In"
             >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={handleZoomOut}
-              className={`p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 transition ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600'}`}
+              className={`p-1 rounded hover:bg-[#262C28] transition cursor-pointer ${isDark ? 'text-[#B1B7B1] hover:text-[#F1F0E9]' : 'text-slate-600'}`}
               title="Zoom Out"
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={handleFit}
-              className={`px-2 py-1 rounded text-xs font-mono font-medium hover:bg-slate-200 dark:hover:bg-slate-800 transition ${isDark ? 'text-cyan-400 font-bold' : 'text-cyan-700 font-bold'}`}
+              className={`px-1.5 py-0.5 rounded text-xs font-mono font-medium hover:bg-[#262C28] transition cursor-pointer ${isDark ? 'text-[#78A887]' : 'text-emerald-700 font-bold'}`}
               title="Auto-Fit Full Flowchart to Screen"
             >
               Fit
             </button>
             <button
               onClick={handleReset}
-              className={`p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 transition ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600'}`}
+              className={`p-1 rounded hover:bg-[#262C28] transition cursor-pointer ${isDark ? 'text-[#B1B7B1] hover:text-[#F1F0E9]' : 'text-slate-600'}`}
               title="Reset View"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -1161,21 +1161,21 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
           </div>
 
           {/* Zoom Percentage */}
-          <span className={`text-[11px] font-mono px-2 py-1 rounded border hidden sm:inline ${isDark ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
+          <span className={`text-[11px] font-mono px-1.5 py-0.5 rounded border hidden sm:inline ${isDark ? 'bg-[#171A19] border-[#343B36] text-[#858E86]' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
             {zoomPercent}%
           </span>
 
           {/* Export SVG */}
           <button
             onClick={handleExportSVG}
-            className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border text-xs font-mono transition ${
+            className={`flex items-center space-x-1 px-2.5 py-1 rounded border text-xs font-mono transition cursor-pointer ${
               isDark
-                ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
+                ? 'bg-[#262C28] border-[#414A43] text-[#B1B7B1] hover:text-[#F1F0E9]'
                 : 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 shadow-sm'
             }`}
             title="Download Flowchart as high-res SVG"
           >
-            <Download className="w-3.5 h-3.5 text-cyan-500" />
+            <Download className="w-3.5 h-3.5 text-[#78A887]" />
             <span className="hidden sm:inline">Export SVG</span>
           </button>
         </div>
@@ -1554,7 +1554,7 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
                         <div className="w-full">
                           <p
                             className={`font-bold text-xs leading-tight ${
-                              isDark ? 'text-cyan-200' : 'text-cyan-950'
+                              isDark ? 'text-[#B9D9BE]' : 'text-emerald-950'
                             }`}
                           >
                             {node.title}
@@ -1564,16 +1564,16 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
                         <div
                           className={`p-2.5 rounded-full my-1 ${
                             isDark
-                              ? 'bg-cyan-950/90 text-cyan-400 border border-cyan-800'
-                              : 'bg-white text-cyan-600 shadow border border-cyan-200'
+                              ? 'bg-[#263A2D] text-[#78A887] border border-[#537B5D]'
+                              : 'bg-emerald-50 text-[#78A887] shadow border border-emerald-200'
                           }`}
                         >
-                          <Sparkles className="w-7 h-7 text-cyan-500 animate-pulse" />
+                          <Sparkles className="w-7 h-7 text-[#78A887]" />
                         </div>
                         <div>
                           <p
                             className={`text-[9.5px] leading-snug px-1 ${
-                              isDark ? 'text-cyan-300' : 'text-cyan-800'
+                              isDark ? 'text-[#B1B7B1]' : 'text-slate-700'
                             }`}
                           >
                             {node.subtitle}
@@ -1588,47 +1588,47 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
           })}
         </svg>
 
-        {/* 3. Node Details Inspector Drawer (Opens when a node is clicked) */}
+        {/* 3. Node Details Inspector Drawer */}
         {selectedNode && (
           <div
-            className={`absolute top-4 right-4 w-96 rounded-2xl border p-5 shadow-2xl z-20 max-h-[calc(100%-2rem)] flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200 ${
-              isDark ? 'bg-[#0f172a] border-slate-700/80' : 'bg-white border-slate-200'
+            className={`absolute top-4 right-4 w-88 rounded-lg border p-4 shadow-xl z-20 max-h-[calc(100%-2rem)] flex flex-col overflow-hidden ${
+              isDark ? 'bg-[#202522] border-[#414A43]' : 'bg-white border-slate-200'
             }`}
           >
             {/* Drawer Header */}
-            <div className="flex items-start justify-between pb-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
-              <div className="flex items-center space-x-2.5">
+            <div className={`flex items-start justify-between pb-2.5 border-b shrink-0 ${isDark ? 'border-[#343B36]' : 'border-slate-200'}`}>
+              <div className="flex items-center space-x-2">
                 <div
-                  className={`p-2 rounded-xl ${
-                    isDark ? 'bg-cyan-950 text-cyan-400' : 'bg-cyan-100 text-cyan-800'
+                  className={`p-1.5 rounded ${
+                    isDark ? 'bg-[#263A2D] text-[#78A887]' : 'bg-emerald-100 text-emerald-800'
                   }`}
                 >
-                  {renderIcon(selectedNode.iconName, 'w-5 h-5')}
+                  {renderIcon(selectedNode.iconName, 'w-4 h-4')}
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm leading-tight">{selectedNode.title}</h3>
-                  <span className="text-[11px] font-mono text-cyan-500 font-semibold uppercase">
+                  <h3 className="font-semibold text-xs leading-tight">{selectedNode.title}</h3>
+                  <span className="text-[10px] font-mono text-[#78A887] font-medium uppercase">
                     Stage: {selectedNode.type}
                   </span>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedNodeId(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                className="p-1 rounded text-[#858E86] hover:text-[#F1F0E9] hover:bg-[#262C28] transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Drawer Body */}
-            <div className="overflow-y-auto py-3 space-y-4 text-xs font-sans">
+            <div className="overflow-y-auto py-2.5 space-y-3 text-xs font-sans">
               {/* Description */}
               {selectedNode.details && (
                 <div>
-                  <h4 className="text-[11px] font-mono font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                  <h4 className="text-[10px] font-mono font-medium text-[#858E86] uppercase tracking-wider mb-1">
                     Function &amp; Purpose
                   </h4>
-                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-800">
+                  <p className={`leading-relaxed p-2.5 rounded border text-xs ${isDark ? 'bg-[#171A19] text-[#B1B7B1] border-[#343B36]' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>
                     {selectedNode.details}
                   </p>
                 </div>
@@ -1637,27 +1637,27 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
               {/* Linked Code Files */}
               {selectedNode.files && selectedNode.files.length > 0 && (
                 <div>
-                  <h4 className="text-[11px] font-mono font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <h4 className="text-[10px] font-mono font-medium text-[#858E86] uppercase tracking-wider mb-1 flex items-center justify-between">
                     <span>Associated Repository Files ({selectedNode.files.length})</span>
                   </h4>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     {selectedNode.files.map((fp) => {
                       const matchedFile = files.find((f) => f.path === fp);
                       return (
                         <div
                           key={fp}
-                          className="flex items-center justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/50 transition group"
+                          className={`flex items-center justify-between p-1.5 rounded border transition group ${isDark ? 'bg-[#171A19] border-[#343B36] hover:border-[#537B5D]' : 'bg-slate-100 border-slate-200'}`}
                         >
-                          <div className="flex items-center space-x-2 truncate">
-                            <FileCode className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
-                            <span className="font-mono text-[11px] text-slate-800 dark:text-slate-200 truncate">
+                          <div className="flex items-center space-x-1.5 truncate">
+                            <FileCode className="w-3.5 h-3.5 text-[#78A887] shrink-0" />
+                            <span className="font-mono text-[11px] text-[#F1F0E9] truncate">
                               {fp}
                             </span>
                           </div>
                           {matchedFile && onSelectFile && (
                             <button
                               onClick={() => onSelectFile(matchedFile)}
-                              className="text-cyan-600 dark:text-cyan-400 hover:underline text-[11px] font-mono flex items-center space-x-0.5 shrink-0 ml-2"
+                              className="text-[#78A887] hover:underline text-[11px] font-mono flex items-center space-x-0.5 shrink-0 ml-1.5 cursor-pointer"
                             >
                               <span>View</span>
                               <ChevronRight className="w-3 h-3" />
@@ -1673,14 +1673,14 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
               {/* AST Symbols */}
               {selectedNode.symbols && selectedNode.symbols.length > 0 && (
                 <div>
-                  <h4 className="text-[11px] font-mono font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                  <h4 className="text-[10px] font-mono font-medium text-[#858E86] uppercase tracking-wider mb-1">
                     Extracted AST Symbols
                   </h4>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1">
                     {selectedNode.symbols.map((sym) => (
                       <span
                         key={sym}
-                        className="px-2 py-0.5 rounded-md font-mono text-[10.5px] bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60"
+                        className="px-1.5 py-0.2 rounded font-mono text-[10px] bg-[#171A19] text-[#B1B7B1] border border-[#343B36]"
                       >
                         {sym}
                       </span>
@@ -1692,10 +1692,10 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
               {/* Code Snippet Preview */}
               {selectedNode.codeSnippet && (
                 <div>
-                  <h4 className="text-[11px] font-mono font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                  <h4 className="text-[10px] font-mono font-medium text-[#858E86] uppercase tracking-wider mb-1">
                     Code Implementation Snippet
                   </h4>
-                  <pre className="p-3 rounded-lg bg-slate-900 text-slate-200 font-mono text-[10.5px] overflow-x-auto border border-slate-800">
+                  <pre className={`p-2.5 rounded font-mono text-[10.5px] overflow-x-auto border ${isDark ? 'bg-[#171A19] text-[#B1B7B1] border-[#343B36]' : 'bg-slate-900 text-slate-200'}`}>
                     <code>{selectedNode.codeSnippet}</code>
                   </pre>
                 </div>
@@ -1704,17 +1704,17 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
 
             {/* Drawer Footer Actions */}
             {onAskAI && (
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 shrink-0">
+              <div className={`pt-2.5 border-t shrink-0 ${isDark ? 'border-[#343B36]' : 'border-slate-200'}`}>
                 <button
                   onClick={() =>
                     onAskAI(
                       `Explain the architectural role of "${selectedNode.title}" in repository ${currentRepo?.name || ''}, citing how it connects to surrounding stages.`,
                     )
                   }
-                  className="w-full flex items-center justify-center space-x-2 py-2 px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-xs font-medium transition shadow-md"
+                  className="w-full flex items-center justify-center space-x-1.5 py-1.5 px-3 rounded bg-[#78A887] hover:bg-[#8AB898] text-[#171A19] font-mono text-xs font-medium transition cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Ask AI About This Stage</span>
+                  <span>Ask AI About Stage</span>
                 </button>
               </div>
             )}
@@ -1763,7 +1763,7 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
             }`}
             title="Expand Legend"
           >
-            <Info className="w-3.5 h-3.5 text-cyan-500" />
+            <Info className="w-3.5 h-3.5 text-[#78A887]" />
             <span>Legend</span>
           </button>
         )}
