@@ -1,20 +1,14 @@
 import React, { useState } from 'react';
 import {
-  GitPullRequest,
-  Sparkles,
   ArrowRight,
   FolderUp,
   Cpu,
-  Database,
-  Search,
-  CheckCircle2,
-  AlertCircle,
-  FileCode2,
-  ShieldCheck,
-  Zap,
-  Lock,
   KeyRound,
   ExternalLink,
+  Lock,
+  AlertCircle,
+  ShieldCheck,
+  Code2,
 } from 'lucide-react';
 import type { Repository } from '../../../types/index.ts';
 
@@ -38,7 +32,12 @@ export const LandingView: React.FC<LandingViewProps> = ({
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   React.useEffect(() => {
-    if (error && (error.toLowerCase().includes('private') || error.toLowerCase().includes('404') || error.toLowerCase().includes('access denied'))) {
+    if (
+      error &&
+      (error.toLowerCase().includes('private') ||
+        error.toLowerCase().includes('404') ||
+        error.toLowerCase().includes('access denied'))
+    ) {
       setShowAdvanced(true);
     }
   }, [error]);
@@ -66,7 +65,6 @@ export const LandingView: React.FC<LandingViewProps> = ({
     const filePromises: Promise<{ path: string; content: string }>[] = [];
     for (let i = 0; i < Math.min(files.length, 25); i++) {
       const file = files[i];
-      // Skip node_modules or binary
       if (file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.ico')) continue;
 
       filePromises.push(
@@ -91,92 +89,87 @@ export const LandingView: React.FC<LandingViewProps> = ({
   };
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-4 space-y-12">
-      {/* Hero Section */}
-      <div className="text-center space-y-4 pt-4">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-800/60 text-cyan-300 text-xs font-mono">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>AI-Powered Code Intelligence Engine</span>
+    <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 space-y-8">
+      {/* Product Introduction */}
+      <div className="space-y-2 border-b border-[#343B36] pb-6">
+        <div className="flex items-center space-x-2">
+          <span className="text-[11px] font-mono text-[#78A887] font-medium uppercase tracking-wider bg-[#263A2D] px-2 py-0.5 rounded border border-[#537B5D]">
+            Static Analysis &amp; Vector Index
+          </span>
+          <span className="text-xs text-[#858E86] font-mono">BITE308L Platform</span>
         </div>
-        <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white">
-          RepoMind
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#F1F0E9]">
+          RepoMind Codebase Ingestion
         </h1>
-        <p className="text-lg sm:text-xl font-semibold bg-gradient-to-r from-cyan-400 via-teal-300 to-blue-400 bg-clip-text text-transparent">
-          AI-Powered Codebase Understanding and Software Analysis Platform
-        </p>
-        <p className="max-w-2xl mx-auto text-base text-slate-400 leading-relaxed">
-          Understand unfamiliar codebases faster with repository analysis,
-          semantic search, RAG-powered answers, architecture visualization,
-          and AI-generated documentation.
+        <p className="text-sm text-[#B1B7B1] max-w-3xl leading-relaxed">
+          Analyze and index GitHub repositories or local directories with Tree-sitter AST parsing, dependency graph derivation, isolated ChromaDB vector indexing, and grounded Gemini RAG.
         </p>
       </div>
 
-      {/* Main Analysis Input Box */}
-      <div className="max-w-3xl mx-auto bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-72 h-72 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none"></div>
-
+      {/* Main Ingestion Form Panel */}
+      <div className="bg-[#262C28] border border-[#414A43] rounded-lg p-5 sm:p-6 space-y-4">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <label className="block text-xs font-mono font-medium text-slate-300">
-            ENTER PUBLIC GITHUB REPOSITORY URL
-          </label>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
+          <div>
+            <label className="block text-xs font-mono font-medium text-[#B1B7B1] mb-2 uppercase tracking-wide">
+              Repository URL (GitHub)
+            </label>
+            <div className="flex flex-col sm:flex-row gap-2.5">
               <input
                 type="text"
                 placeholder="https://github.com/fastapi/fastapi or https://github.com/expressjs/express"
                 value={repoUrl}
                 onChange={(e) => setRepoUrl(e.target.value)}
                 disabled={isLoading}
-                className="w-full bg-[#0b0f17] border border-slate-700/80 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 font-mono transition"
+                className="flex-1 bg-[#171A19] border border-[#414A43] focus:border-[#78A887] rounded-md px-3.5 py-2.5 text-xs text-[#F1F0E9] placeholder-[#858E86] font-mono focus:outline-none transition"
               />
+              <button
+                type="submit"
+                disabled={isLoading || !repoUrl.trim()}
+                className="bg-[#78A887] hover:bg-[#8AB898] disabled:opacity-50 text-[#171A19] font-medium px-5 py-2.5 rounded-md text-xs font-mono transition flex items-center justify-center space-x-2 shrink-0 cursor-pointer"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-[#171A19]/30 border-t-[#171A19] rounded-full animate-spin"></div>
+                    <span>Analyzing Codebase...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Analyze Repository</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                )}
+              </button>
             </div>
-            <button
-              type="submit"
-              disabled={isLoading || !repoUrl.trim()}
-              className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-white font-semibold px-6 py-3 rounded-xl text-sm transition flex items-center justify-center space-x-2 shadow-lg shadow-cyan-900/40 shrink-0"
-            >
-              {isLoading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>Analyzing...</span>
-                </>
-              ) : (
-                <>
-                  <span>Analyze Repository</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
           </div>
 
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] font-mono">
             <button
               type="button"
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="text-[11px] font-mono text-cyan-400 hover:underline"
+              className="text-[#78A887] hover:underline cursor-pointer"
             >
-              {showAdvanced ? '- Hide GitHub Token option' : '+ Add GitHub Token (optional, for higher rate limits)'}
+              {showAdvanced ? '− Hide GitHub Token option' : '+ Configure GitHub Token (Optional for private repos)'}
             </button>
-            <span className="text-[11px] text-slate-500 font-mono">
-              Parses Python, TypeScript, JavaScript, Java
+            <span className="text-[#858E86]">
+              Supported: Python, TypeScript, JavaScript, Java
             </span>
           </div>
 
           {showAdvanced && (
-            <div className="pt-2 space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
-                <span className="flex items-center space-x-1.5 text-cyan-400 font-medium">
-                  <KeyRound className="w-3.5 h-3.5" />
+            <div className="p-3.5 bg-[#202522] border border-[#343B36] rounded-md space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-mono">
+                <span className="flex items-center space-x-1.5 text-[#B1B7B1] font-medium">
+                  <KeyRound className="w-3.5 h-3.5 text-[#78A887]" />
                   <span>GitHub Personal Access Token</span>
                 </span>
-                <span className="text-amber-400/90 text-[10px]">Required for private repositories</span>
+                <span className="text-[#D6A85F]">Required for private repositories or rate limits</span>
               </div>
               <input
                 type="password"
                 placeholder="Paste token (ghp_... or github_pat_...)"
                 value={githubToken}
                 onChange={(e) => setGithubToken(e.target.value)}
-                className="w-full bg-[#0b0f17] border border-cyan-700/60 focus:border-cyan-400 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                className="w-full bg-[#171A19] border border-[#414A43] focus:border-[#78A887] rounded-md px-3 py-1.5 text-xs text-[#F1F0E9] placeholder-[#858E86] font-mono focus:outline-none"
               />
             </div>
           )}
@@ -184,41 +177,41 @@ export const LandingView: React.FC<LandingViewProps> = ({
 
         {error && (
           isPrivateRepo ? (
-            <div className="mt-4 p-4 bg-amber-950/40 border border-amber-500/50 rounded-xl text-amber-200 text-xs space-y-2.5 font-mono shadow-lg shadow-amber-950/20">
-              <div className="flex items-center space-x-2 text-amber-400 font-bold text-sm">
-                <Lock className="w-4 h-4 shrink-0 text-amber-400" />
-                <span>Private Repository Detected</span>
+            <div className="p-3.5 bg-[#202522] border border-[#E6B566] rounded-md text-[#E6B566] text-xs space-y-2 font-mono">
+              <div className="flex items-center space-x-2 font-semibold">
+                <Lock className="w-4 h-4 shrink-0 text-[#E6B566]" />
+                <span>Private Repository or Authorization Required</span>
               </div>
-              <p className="text-amber-200/90 leading-relaxed font-sans text-xs">
+              <p className="text-[#B1B7B1] leading-relaxed font-sans text-xs">
                 {error}
               </p>
-              <div className="pt-1 flex flex-wrap items-center gap-3 font-sans">
+              <div className="pt-1 flex flex-wrap items-center gap-3">
                 <a
                   href="https://github.com/settings/tokens/new?scopes=repo&description=RepoMind-Code-Archaeologist"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition text-xs font-medium"
+                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded bg-[#2B322D] hover:bg-[#343B36] text-[#E6B566] border border-[#E6B566]/50 transition text-xs font-mono"
                 >
                   <KeyRound className="w-3.5 h-3.5" />
-                  <span>Generate Token on GitHub (Pre-selected repo scope)</span>
-                  <ExternalLink className="w-3 h-3" />
+                  <span>Generate Token on GitHub</span>
+                  <ExternalLink className="w-3 h-3 ml-0.5" />
                 </a>
               </div>
             </div>
           ) : (
-            <div className="mt-4 p-3 bg-red-950/40 border border-red-800/60 rounded-xl text-red-300 text-xs flex items-start space-x-2 font-mono">
+            <div className="p-3 bg-[#202522] border border-[#E58C83] rounded-md text-[#E58C83] text-xs flex items-start space-x-2 font-mono">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )
         )}
 
-        <div className="mt-6 pt-5 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center space-x-2 text-xs text-slate-400">
-            <FolderUp className="w-4 h-4 text-cyan-400" />
-            <span>Or analyze a local project folder:</span>
+        <div className="pt-4 border-t border-[#343B36] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="flex items-center space-x-2 text-[#858E86]">
+            <FolderUp className="w-4 h-4 text-[#78A887]" />
+            <span>Or analyze a local repository folder:</span>
           </div>
-          <label className="cursor-pointer bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3.5 py-1.5 rounded-lg text-xs font-mono transition flex items-center space-x-2">
+          <label className="cursor-pointer bg-[#2B322D] hover:bg-[#343B36] text-[#F1F0E9] border border-[#414A43] px-3 py-1.5 rounded-md text-xs font-mono transition flex items-center space-x-2">
             <span>Upload Directory</span>
             <input
               type="file"
@@ -231,136 +224,133 @@ export const LandingView: React.FC<LandingViewProps> = ({
         </div>
       </div>
 
-      {/* Curated Sample Repositories (1-Click Test) */}
-      <div className="space-y-4">
+      {/* Curated Benchmark Codebases */}
+      <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white flex items-center space-x-2">
-            <Zap className="w-4 h-4 text-amber-400" />
-            <span>Curated Benchmark Codebases (1-Click Instant Analysis)</span>
+          <h2 className="text-sm font-semibold text-[#F1F0E9] flex items-center space-x-2">
+            <span>Curated Benchmark Repositories</span>
           </h2>
-          <span className="text-xs text-slate-500 font-mono">Pre-indexed with AST &amp; ChromaDB</span>
+          <span className="text-[11px] text-[#858E86] font-mono">Pre-indexed with AST &amp; ChromaDB</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* Sample 1: Python FastAPI */}
           <div
             onClick={() => handleSelectSample('repo-python-fastapi')}
-            className="group cursor-pointer bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-cyan-500/50 rounded-xl p-5 transition space-y-3 relative overflow-hidden"
+            className="group cursor-pointer bg-[#262C28] hover:bg-[#2B322D] border border-[#414A43] hover:border-[#537B5D] rounded-lg p-4 transition space-y-2.5"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-semibold text-blue-400 px-2 py-0.5 rounded bg-blue-950/60 border border-blue-800/50">
-                Python / FastAPI
+              <span className="text-[11px] font-mono font-medium text-[#91B8D2] px-2 py-0.5 rounded bg-[#202522] border border-[#343B36]">
+                Python
               </span>
-              <span className="text-[11px] font-mono text-slate-500">8 Files &bull; 19 Symbols</span>
+              <span className="text-[10px] font-mono text-[#858E86]">8 Files · 19 Symbols</span>
             </div>
-            <h3 className="font-semibold text-sm text-slate-100 group-hover:text-cyan-300 transition">
+            <h3 className="font-semibold text-xs text-[#F1F0E9] group-hover:text-[#B9D9BE] transition font-mono">
               fastapi-jwt-auth-service
             </h3>
-            <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
-              Production JWT authentication service with SQLAlchemy async sessions, OAuth2 password flow, and bcrypt.
+            <p className="text-xs text-[#B1B7B1] leading-relaxed line-clamp-2">
+              FastAPI authentication microservice with async SQLAlchemy sessions, OAuth2 scopes, and bcrypt hashing.
             </p>
-            <div className="flex items-center text-xs text-cyan-400 font-mono pt-1">
-              <span>Inspect codebase</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition" />
+            <div className="flex items-center text-xs text-[#78A887] font-mono pt-1">
+              <span>Load repository</span>
+              <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
 
           {/* Sample 2: TypeScript Core Engine */}
           <div
             onClick={() => handleSelectSample('repo-ts-code-archaeologist')}
-            className="group cursor-pointer bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-cyan-500/50 rounded-xl p-5 transition space-y-3 relative overflow-hidden"
+            className="group cursor-pointer bg-[#262C28] hover:bg-[#2B322D] border border-[#414A43] hover:border-[#537B5D] rounded-lg p-4 transition space-y-2.5"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-semibold text-cyan-400 px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/50">
-                TypeScript / AST
+              <span className="text-[11px] font-mono font-medium text-[#78A887] px-2 py-0.5 rounded bg-[#263A2D] border border-[#537B5D]">
+                TypeScript
               </span>
-              <span className="text-[11px] font-mono text-slate-500">6 Files &bull; 18 Symbols</span>
+              <span className="text-[10px] font-mono text-[#858E86]">6 Files · 18 Symbols</span>
             </div>
-            <h3 className="font-semibold text-sm text-slate-100 group-hover:text-cyan-300 transition">
+            <h3 className="font-semibold text-xs text-[#F1F0E9] group-hover:text-[#B9D9BE] transition font-mono">
               repomind-core-engine
             </h3>
-            <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
-              Multi-language AST parser, semantic code chunker, ChromaDB vector storage, and Gemini RAG orchestrator.
+            <p className="text-xs text-[#B1B7B1] leading-relaxed line-clamp-2">
+              Multi-language Tree-sitter parser, semantic code chunker, ChromaDB vector store, and Gemini RAG orchestrator.
             </p>
-            <div className="flex items-center text-xs text-cyan-400 font-mono pt-1">
-              <span>Inspect codebase</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition" />
+            <div className="flex items-center text-xs text-[#78A887] font-mono pt-1">
+              <span>Load repository</span>
+              <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
 
           {/* Sample 3: Java Spring Boot */}
           <div
             onClick={() => handleSelectSample('repo-java-spring-microservice')}
-            className="group cursor-pointer bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-cyan-500/50 rounded-xl p-5 transition space-y-3 relative overflow-hidden"
+            className="group cursor-pointer bg-[#262C28] hover:bg-[#2B322D] border border-[#414A43] hover:border-[#537B5D] rounded-lg p-4 transition space-y-2.5"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-semibold text-amber-400 px-2 py-0.5 rounded bg-amber-950/60 border border-amber-800/50">
-                Java / Spring Boot
+              <span className="text-[11px] font-mono font-medium text-[#D6A85F] px-2 py-0.5 rounded bg-[#202522] border border-[#343B36]">
+                Java
               </span>
-              <span className="text-[11px] font-mono text-slate-500">5 Files &bull; 14 Symbols</span>
+              <span className="text-[10px] font-mono text-[#858E86]">5 Files · 14 Symbols</span>
             </div>
-            <h3 className="font-semibold text-sm text-slate-100 group-hover:text-cyan-300 transition">
+            <h3 className="font-semibold text-xs text-[#F1F0E9] group-hover:text-[#B9D9BE] transition font-mono">
               spring-boot-inventory-service
             </h3>
-            <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
-              Spring Boot microservice with REST controllers, transactional services, and Spring Data JPA repositories.
+            <p className="text-xs text-[#B1B7B1] leading-relaxed line-clamp-2">
+              Enterprise Spring Boot REST API for inventory management with JPA repositories and JWT security filters.
             </p>
-            <div className="flex items-center text-xs text-cyan-400 font-mono pt-1">
-              <span>Inspect codebase</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition" />
+            <div className="flex items-center text-xs text-[#78A887] font-mono pt-1">
+              <span>Load repository</span>
+              <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Pipeline Overview Diagram (As specified in Section 2) */}
-      <div className="border border-slate-800 bg-slate-900/40 rounded-2xl p-6 space-y-5">
+      {/* Analysis Pipeline Steps */}
+      <div className="border border-[#343B36] bg-[#202522] rounded-lg p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h2 className="text-base font-bold text-white flex items-center space-x-2">
-              <Cpu className="w-4 h-4 text-cyan-400" />
-              <span>Full Analysis &amp; RAG Architecture Pipeline</span>
+          <div className="space-y-0.5">
+            <h2 className="text-sm font-semibold text-[#F1F0E9] flex items-center space-x-2">
+              <Cpu className="w-4 h-4 text-[#78A887]" />
+              <span>Static Analysis &amp; RAG Architecture Pipeline</span>
             </h2>
-            <p className="text-xs text-slate-400">
-              Deterministic code analysis married with vector retrieval and Google Gemini synthesis.
+            <p className="text-xs text-[#858E86]">
+              End-to-end execution flow from raw source code to verified citations.
             </p>
           </div>
-          <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded">
-            Section 2 Workflow
+          <span className="text-[10px] font-mono text-[#81C995] bg-[#263A2D] border border-[#537B5D] px-2 py-0.5 rounded hidden sm:inline">
+            Deterministic Pipeline
           </span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 text-center">
           {[
-            { step: '01', title: 'Repository Ingestion', desc: 'Sanitize & filter' },
-            { step: '02', title: 'Tree-sitter Parsing', desc: 'AST extraction' },
-            { step: '03', title: 'Static Analysis', desc: 'Dependencies & calls' },
-            { step: '04', title: 'Code Chunking', desc: 'Logical boundaries' },
-            { step: '05', title: 'Embeddings', desc: 'Semantic vectors' },
-            { step: '06', title: 'ChromaDB', desc: 'Isolated collections' },
-            { step: '07', title: 'LangChain RAG', desc: 'Grounded retrieval' },
-            { step: '08', title: 'Gemini 3.8 Flash', desc: 'Synthesized evidence' },
+            { step: '01', title: 'Ingestion', desc: 'Sanitize & filter' },
+            { step: '02', title: 'Tree-sitter', desc: 'AST parsing' },
+            { step: '03', title: 'Static Graph', desc: 'Call & imports' },
+            { step: '04', title: 'Chunking', desc: 'AST boundaries' },
+            { step: '05', title: 'Embeddings', desc: 'Dense vectors' },
+            { step: '06', title: 'ChromaDB', desc: 'Vector store' },
+            { step: '07', title: 'Context RAG', desc: 'Retrieved chunks' },
+            { step: '08', title: 'Gemini RAG', desc: 'Citations' },
           ].map((item, idx) => (
             <div
               key={idx}
-              className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex flex-col items-center justify-center space-y-1.5 hover:border-cyan-500/40 transition"
+              className="bg-[#262C28] border border-[#343B36] rounded-md p-2.5 flex flex-col items-center justify-center space-y-1"
             >
-              <span className="text-[10px] font-mono font-bold text-cyan-400">{item.step}</span>
-              <p className="text-[11px] font-semibold text-slate-200">{item.title}</p>
-              <p className="text-[9px] text-slate-500 font-mono">{item.desc}</p>
+              <span className="text-[10px] font-mono font-medium text-[#78A887]">{item.step}</span>
+              <p className="text-[11px] font-medium text-[#F1F0E9] truncate w-full">{item.title}</p>
+              <p className="text-[9px] text-[#858E86] font-mono truncate w-full">{item.desc}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Anti-Hallucination & Academic Scope Disclaimer */}
-      <div className="border border-slate-800/80 bg-slate-900/20 rounded-xl p-4 flex items-start space-x-3 text-xs text-slate-400 leading-relaxed font-mono">
-        <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+      {/* Verification Notice */}
+      <div className="border border-[#343B36] bg-[#262C28] rounded-md p-3.5 flex items-start space-x-3 text-xs text-[#B1B7B1] leading-relaxed">
+        <ShieldCheck className="w-4 h-4 text-[#81C995] shrink-0 mt-0.5" />
         <div>
-          <span className="text-slate-200 font-semibold">Strict Anti-Hallucination Principle: </span>
-          RepoMind grounds every LLM answer on retrieved AST code chunks. If evidence is insufficient,
-          the system explicitly states so rather than guessing. No claims of &ldquo;100% accuracy&rdquo; are made;
-          transparent evidence citations are provided for every claim.
+          <span className="text-[#F1F0E9] font-medium">Verifiable Citation Principle: </span>
+          RepoMind grounds every answer strictly on AST code chunks retrieved from the vector index. When repository context is insufficient, the system explicitly acknowledges missing evidence rather than guessing.
         </div>
       </div>
     </div>

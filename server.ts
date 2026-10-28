@@ -796,7 +796,9 @@ async function startServer() {
     app.use(vite.middlewares);
   }
 
-  app.listen(PORT, 'localhost', () => {
+const HOST = process.env.HOST || '0.0.0.0';
+
+  app.listen(PORT, HOST, () => {
     console.log(`[RepoMind] Engine active at http://localhost:${PORT}`);
     console.log(`[RepoMind] API ready on /api/repositories`);
   });

@@ -1,20 +1,62 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --font-mono: 'JetBrains Mono', monospace;
-    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  }
+@theme {
+  --color-app-bg: #171A19;
+  --color-sidebar-bg: #202522;
+  --color-panel: #262C28;
+  --color-panel-elevated: #2B322D;
+  --color-border-default: #414A43;
+  --color-border-subtle: #343B36;
+  --color-text-primary: #F1F0E9;
+  --color-text-secondary: #B1B7B1;
+  --color-text-muted: #858E86;
+  --color-accent-primary: #78A887;
+  --color-accent-hover: #8AB898;
+  --color-nav-selected-bg: #263A2D;
+  --color-nav-selected-border: #537B5D;
+  --color-nav-selected-text: #B9D9BE;
+  --color-accent-amber: #D6A85F;
+  --color-status-success: #81C995;
+  --color-status-warning: #E6B566;
+  --color-status-error: #E58C83;
+  --color-status-info: #91B8D2;
+  --color-status-disabled: #687069;
 
-  body {
-    font-family: var(--font-sans);
-    background-color: #0b0f17;
-    color: #e2e8f0;
-  }
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, Consolas, monospace;
+}
 
-  code, pre, .font-mono {
-    font-family: var(--font-mono);
-  }
+:root {
+  --app-bg: #171A19;
+  --sidebar-bg: #202522;
+  --panel-bg: #262C28;
+  --panel-elevated: #2B322D;
+  --border-default: #414A43;
+  --border-subtle: #343B36;
+  --text-primary: #F1F0E9;
+  --text-secondary: #B1B7B1;
+  --text-muted: #858E86;
+  --accent-primary: #78A887;
+  --accent-primary-hover: #8AB898;
+  --nav-selected-bg: #263A2D;
+  --nav-selected-border: #537B5D;
+  --nav-selected-text: #B9D9BE;
+  --accent-secondary: #D6A85F;
+  --status-success: #81C995;
+  --status-warning: #E6B566;
+  --status-error: #E58C83;
+  --status-info: #91B8D2;
+  --disabled: #687069;
+}
+
+body {
+  font-family: var(--font-sans, 'Inter', system-ui, -apple-system, sans-serif);
+  background-color: #171A19;
+  color: #F1F0E9;
+}
+
+code, pre, .font-mono {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
 }
 
 /* Custom scrollbars for code explorer & trees */
@@ -24,14 +66,14 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0d121d;
+  background: #171A19;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #343B36;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #414A43;
 }

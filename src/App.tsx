@@ -136,7 +136,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f17] text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#171A19] text-[#F1F0E9] flex flex-col font-sans">
       {/* Top Navigation Bar */}
       <Navbar
         currentRepo={currentRepo}
@@ -156,7 +156,7 @@ export default function App() {
         />
 
         {/* Dynamic Main Workspace Screen */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto bg-[#171A19]">
           {activeTab === 'landing' && (
             <LandingView
               onAnalyze={handleAnalyze}

@@ -1,13 +1,11 @@
 import React from 'react';
 import {
-  Compass,
   GitBranch,
-  Layers,
-  Sparkles,
   Search,
   CheckCircle2,
   Clock,
-  ExternalLink,
+  Plus,
+  Terminal,
 } from 'lucide-react';
 import type { Repository } from '../../types/index.ts';
 
@@ -27,59 +25,53 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNewAnalysis,
 }) => {
   return (
-    <header className="h-16 border-b border-slate-800 bg-[#0c121e]/90 backdrop-blur-md px-4 flex items-center justify-between z-30 sticky top-0">
+    <header className="h-13 border-b border-[#343B36] bg-[#202522] px-4 flex items-center justify-between z-30 sticky top-0 shrink-0">
       {/* Brand logo & title */}
-      <div className="flex items-center space-x-3">
-        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white font-bold ring-1 ring-cyan-400/30">
-          <Compass className="w-5 h-5 text-white animate-pulse" />
+      <div className="flex items-center space-x-3 shrink-0">
+        <div className="w-7 h-7 rounded bg-[#263A2D] border border-[#537B5D] flex items-center justify-center text-[#B9D9BE]">
+          <Terminal className="w-4 h-4 text-[#78A887]" />
         </div>
-        <div>
-          <div className="flex items-center space-x-2">
-            <span className="font-extrabold text-base tracking-tight bg-gradient-to-r from-cyan-300 via-teal-200 to-white bg-clip-text text-transparent">
-              RepoMind
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400 font-mono hidden sm:block">
-            AI-Powered Codebase Understanding &amp; Software Analysis
-          </p>
+        <div className="flex items-baseline space-x-2">
+          <span className="font-semibold text-sm tracking-tight text-[#F1F0E9]">
+            RepoMind
+          </span>
+          <span className="text-[11px] text-[#858E86] font-mono hidden md:inline">
+            codebase-analysis
+          </span>
         </div>
       </div>
 
-      {/* Center: Repository Selector & Status (Section 18) */}
-      <div className="flex items-center space-x-3">
+      {/* Center: Repository Selector & Status */}
+      <div className="flex items-center space-x-2.5 min-w-0 mx-2">
         {currentRepo ? (
-          <div className="flex items-center bg-slate-900/90 border border-slate-800 rounded-lg p-1 px-3 space-x-2.5 shadow-inner">
-            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider hidden lg:inline">
-              Repository:
-            </span>
-            <div className="flex items-center space-x-1.5">
-              <GitBranch className="w-3.5 h-3.5 text-cyan-400" />
-              <select
-                value={currentRepo.id}
-                onChange={(e) => onSelectRepo(e.target.value)}
-                className="bg-transparent text-xs font-mono font-bold text-slate-200 focus:outline-none cursor-pointer max-w-[200px] truncate"
-              >
-                {repositories.map((r) => (
-                  <option key={r.id} value={r.id} className="bg-slate-900 text-slate-200">
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="flex items-center bg-[#262C28] border border-[#414A43] rounded-md px-2.5 py-1 space-x-2 min-w-0">
+            <GitBranch className="w-3.5 h-3.5 text-[#78A887] shrink-0" />
+            <select
+              value={currentRepo.id}
+              onChange={(e) => onSelectRepo(e.target.value)}
+              className="bg-transparent text-xs font-mono font-medium text-[#F1F0E9] focus:outline-none cursor-pointer max-w-[180px] sm:max-w-[240px] truncate"
+              title={currentRepo.name}
+            >
+              {repositories.map((r) => (
+                <option key={r.id} value={r.id} className="bg-[#262C28] text-[#F1F0E9]">
+                  {r.name}
+                </option>
+              ))}
+            </select>
 
-            <div className="h-3 w-[1px] bg-slate-800"></div>
+            <div className="h-3 w-[1px] bg-[#343B36] shrink-0"></div>
 
             {/* Status Badge */}
-            <div className="flex items-center space-x-1.5">
+            <div className="flex items-center shrink-0">
               {currentRepo.status === 'COMPLETED' ? (
-                <span className="inline-flex items-center text-[10px] text-emerald-400 font-medium bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800/60 font-mono">
-                  <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
-                  Indexed
+                <span className="inline-flex items-center text-[10px] text-[#81C995] font-mono">
+                  <CheckCircle2 className="w-3 h-3 mr-1 text-[#81C995]" />
+                  <span>Indexed</span>
                 </span>
               ) : (
-                <span className="inline-flex items-center text-[10px] text-amber-400 font-medium bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-800/60 animate-pulse font-mono">
-                  <Clock className="w-2.5 h-2.5 mr-1" />
-                  {currentRepo.status}
+                <span className="inline-flex items-center text-[10px] text-[#E6B566] font-mono">
+                  <Clock className="w-3 h-3 mr-1 text-[#E6B566]" />
+                  <span>{currentRepo.status}</span>
                 </span>
               )}
             </div>
@@ -87,44 +79,45 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Primary Language */}
             {currentRepo.stats?.languages?.[0]?.name && (
               <>
-                <div className="h-3 w-[1px] bg-slate-800 hidden md:block"></div>
-                <span className="text-[11px] font-mono text-cyan-300 hidden md:inline">
+                <div className="h-3 w-[1px] bg-[#343B36] hidden lg:block shrink-0"></div>
+                <span className="text-[11px] font-mono text-[#B1B7B1] hidden lg:inline">
                   {currentRepo.stats.languages[0].name}
                 </span>
               </>
             )}
 
             {/* Last Analyzed Timestamp */}
-            <div className="h-3 w-[1px] bg-slate-800 hidden xl:block"></div>
-            <span className="text-[10px] font-mono text-slate-400 hidden xl:inline">
-              Analyzed: {new Date(currentRepo.updatedAt || currentRepo.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            <div className="h-3 w-[1px] bg-[#343B36] hidden xl:block shrink-0"></div>
+            <span className="text-[10px] font-mono text-[#858E86] hidden xl:inline">
+              Updated {new Date(currentRepo.updatedAt || currentRepo.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
         ) : (
-          <span className="text-xs text-slate-400 font-mono">No repository loaded</span>
+          <span className="text-xs text-[#858E86] font-mono">No repository loaded</span>
         )}
 
         {/* Global Semantic Search Trigger Button */}
         <button
           onClick={onOpenSearch}
-          className="hidden md:flex items-center space-x-2 bg-slate-900/80 hover:bg-slate-800 border border-slate-700/70 hover:border-cyan-500/50 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs transition shadow-sm"
+          className="hidden sm:flex items-center space-x-2 bg-[#262C28] hover:bg-[#2B322D] border border-[#414A43] hover:border-[#537B5D] text-[#B1B7B1] hover:text-[#F1F0E9] px-2.5 py-1 rounded-md text-xs transition"
+          title="Open Semantic Search"
         >
-          <Search className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="font-mono text-[11px]">Semantic Search...</span>
-          <kbd className="text-[10px] bg-slate-800 border border-slate-700 px-1.5 py-0.2 rounded text-slate-400 font-mono">
+          <Search className="w-3.5 h-3.5 text-[#858E86]" />
+          <span className="text-[11px] font-mono">Search code...</span>
+          <kbd className="text-[10px] bg-[#171A19] border border-[#343B36] px-1.5 py-0.2 rounded text-[#858E86] font-mono">
             ⌘K
           </kbd>
         </button>
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center space-x-2.5">
+      <div className="flex items-center space-x-2 shrink-0">
         <button
           onClick={onNewAnalysis}
-          className="flex items-center space-x-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-medium text-xs px-3 py-1.5 rounded-lg shadow-md shadow-cyan-900/30 transition hover:shadow-cyan-600/20 ring-1 ring-cyan-400/20"
+          className="flex items-center space-x-1.5 bg-[#78A887] hover:bg-[#8AB898] text-[#171A19] font-medium text-xs px-3 py-1.5 rounded-md transition shadow-xs"
         >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Ingest New Repo</span>
+          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span>Ingest Repository</span>
         </button>
       </div>
     </header>

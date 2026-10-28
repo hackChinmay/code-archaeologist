@@ -623,41 +623,41 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
   }, [architecture, files, symbols, currentRepo]);
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col overflow-hidden bg-[#070a11] text-slate-100 select-none">
-      {/* 0. Master View Switcher: Flowchart (Primary & Intuitive) vs Raw AST Graph */}
-      <div className="border-b border-slate-800/90 bg-[#080c15] px-5 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 z-30">
+    <div className="h-[calc(100vh-3.25rem)] flex flex-col overflow-hidden bg-[#171A19] text-[#F1F0E9] select-none">
+      {/* 0. Master View Switcher: Flowchart vs Raw AST Graph */}
+      <div className="border-b border-[#343B36] bg-[#202522] px-4 py-2 flex flex-wrap items-center justify-between gap-3 shrink-0 z-30">
         <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-1 p-1 rounded-xl bg-[#0e1422] border border-slate-700/80 shadow-inner">
+          <div className="flex items-center space-x-1 p-0.5 rounded-md bg-[#171A19] border border-[#414A43]">
             <button
               onClick={() => setDiagramType('flowchart')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition flex items-center space-x-2 ${
+              className={`px-3 py-1 rounded text-xs font-mono font-medium transition flex items-center space-x-1.5 cursor-pointer ${
                 diagramType === 'flowchart'
-                  ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-md font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#263A2D] text-[#B9D9BE] border border-[#537B5D]'
+                  : 'text-[#B1B7B1] hover:text-[#F1F0E9]'
               }`}
             >
-              <Layers className="w-3.5 h-3.5" />
+              <Layers className="w-3.5 h-3.5 text-[#78A887]" />
               <span>Flowchart Diagram</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/40">
+              <span className="text-[10px] px-1 py-0.2 rounded bg-[#202522] text-[#81C995] border border-[#343B36]">
                 Recommended
               </span>
             </button>
             <button
               onClick={() => setDiagramType('graph')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition flex items-center space-x-2 ${
+              className={`px-3 py-1 rounded text-xs font-mono font-medium transition flex items-center space-x-1.5 cursor-pointer ${
                 diagramType === 'graph'
-                  ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-md font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#263A2D] text-[#B9D9BE] border border-[#537B5D]'
+                  : 'text-[#B1B7B1] hover:text-[#F1F0E9]'
               }`}
             >
-              <Network className="w-3.5 h-3.5" />
-              <span>Raw AST Graph</span>
+              <Network className="w-3.5 h-3.5 text-[#78A887]" />
+              <span>AST Node Graph</span>
             </button>
           </div>
-          <span className="text-xs text-slate-400 hidden lg:inline font-sans">
+          <span className="text-xs text-[#858E86] hidden lg:inline font-sans">
             {diagramType === 'flowchart'
-              ? 'Structured workflow flowchart showing clear execution paths, decision logic, and AI explanation.'
-              : 'Detailed multi-layer AST node graph showing file, module, class, and function dependencies.'}
+              ? 'Sequential execution flow with component roles, AST symbols, and decision logic.'
+              : 'Interactive AST dependency graph showing modules, classes, and function calls.'}
           </span>
         </div>
 
@@ -668,11 +668,11 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
                 `Explain the architecture structure of repository ${currentRepo?.name || ''}, highlighting how requests flow through key components.`,
               )
             }
-            className="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs font-mono border border-slate-700 transition"
+            className="flex items-center space-x-1.5 bg-[#262C28] hover:bg-[#2B322D] text-[#F1F0E9] px-3 py-1 rounded-md text-xs font-mono border border-[#414A43] transition cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+            <Sparkles className="w-3.5 h-3.5 text-[#78A887]" />
             <span className="hidden sm:inline">Ask AI About Architecture</span>
-            <ArrowRight className="w-3 h-3 text-cyan-400" />
+            <ArrowRight className="w-3 h-3 text-[#78A887]" />
           </button>
         )}
       </div>
@@ -689,47 +689,41 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
         </div>
       ) : (
         <>
-          {/* 1. Header Toolbar (Section 16: Professional Code Observability Header) */}
-          <div className="border-b border-slate-800 bg-[#090d16] px-5 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0 z-20">
+          {/* 1. Header Toolbar */}
+          <div className="border-b border-[#343B36] bg-[#202522] px-4 py-2 flex flex-col md:flex-row md:items-center justify-between gap-2.5 shrink-0 z-20">
         <div>
-          <div className="flex items-center space-x-2.5">
-            <div className="w-7 h-7 rounded-lg bg-cyan-950/80 border border-cyan-800/60 flex items-center justify-center text-cyan-400">
-              <Network className="w-4 h-4" />
+          <div className="flex items-center space-x-2">
+            <div className="w-6 h-6 rounded bg-[#263A2D] border border-[#537B5D] flex items-center justify-center text-[#78A887]">
+              <Network className="w-3.5 h-3.5" />
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h1 className="text-sm font-bold tracking-tight text-white font-mono uppercase">
-                  ARCHITECTURE
-                </h1>
-                <span className="text-slate-400 font-normal text-xs">&bull;</span>
-                <span className="text-xs text-slate-300 font-medium">Dependency &amp; Code Structure</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950/90 text-cyan-300 border border-cyan-800/70 font-semibold">
-                  {visibleNodes.length} nodes &bull; {visibleEdges.length} relationships
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 font-sans mt-0.5">
-                Explore how files, modules, classes, functions, and dependencies connect across this repository.
-              </p>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-mono font-semibold text-[#F1F0E9] uppercase">
+                Architecture Graph
+              </span>
+              <span className="text-[#858E86] text-xs">·</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#262C28] text-[#81C995] border border-[#343B36]">
+                {visibleNodes.length} nodes · {visibleEdges.length} edges
+              </span>
             </div>
           </div>
         </div>
 
         {/* Action Controls & Layout Pickers */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           {/* Node Search Bar */}
-          <div className="relative w-44 sm:w-52">
-            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
+          <div className="relative w-40 sm:w-48">
+            <Search className="w-3.5 h-3.5 text-[#858E86] absolute left-2 top-2" />
             <input
               type="text"
               placeholder="Search component..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-              className="w-full bg-[#0b0f17] border border-slate-700/80 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-slate-200 placeholder-slate-500 font-mono focus:outline-none focus:border-cyan-500 transition"
+              className="w-full bg-[#171A19] border border-[#414A43] focus:border-[#78A887] rounded px-7 py-1 text-xs text-[#F1F0E9] placeholder-[#858E86] font-mono focus:outline-none transition"
             />
             {searchFilter && (
               <button
                 onClick={() => setSearchFilter('')}
-                className="absolute right-2 top-2 text-slate-400 hover:text-white text-xs"
+                className="absolute right-2 top-1.5 text-[#858E86] hover:text-[#F1F0E9] text-xs cursor-pointer"
               >
                 &times;
               </button>
@@ -737,24 +731,24 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
           </div>
 
           {/* Layout Mode Selector (Hierarchical, Grouped, Radial) */}
-          <div className="flex items-center bg-[#0b0f17] border border-slate-700/80 rounded-lg p-0.5 text-xs font-mono">
+          <div className="flex items-center bg-[#171A19] border border-[#414A43] rounded p-0.5 text-xs font-mono">
             <button
               onClick={() => setLayoutMode('hierarchical')}
-              className={`px-2.5 py-1 rounded transition ${
+              className={`px-2 py-0.5 rounded transition cursor-pointer ${
                 layoutMode === 'hierarchical'
-                  ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#263A2D] text-[#B9D9BE] font-medium border border-[#537B5D]'
+                  : 'text-[#B1B7B1] hover:text-[#F1F0E9]'
               }`}
-              title="Hierarchical Tier Layout (Recommended)"
+              title="Hierarchical Tier Layout"
             >
               Hierarchical
             </button>
             <button
               onClick={() => setLayoutMode('grouped')}
-              className={`px-2.5 py-1 rounded transition ${
+              className={`px-2 py-0.5 rounded transition cursor-pointer ${
                 layoutMode === 'grouped'
-                  ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#263A2D] text-[#B9D9BE] font-medium border border-[#537B5D]'
+                  : 'text-[#B1B7B1] hover:text-[#F1F0E9]'
               }`}
               title="Grouped by Directory Modules"
             >
@@ -762,10 +756,10 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
             </button>
             <button
               onClick={() => setLayoutMode('radial')}
-              className={`px-2.5 py-1 rounded transition ${
+              className={`px-2 py-0.5 rounded transition cursor-pointer ${
                 layoutMode === 'radial'
-                  ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#263A2D] text-[#B9D9BE] font-medium border border-[#537B5D]'
+                  : 'text-[#B1B7B1] hover:text-[#F1F0E9]'
               }`}
               title="Radial Orbital Layout"
             >
@@ -777,21 +771,21 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
           <select
             value={nodeTypeFilter}
             onChange={(e) => setNodeTypeFilter(e.target.value)}
-            className="bg-[#0b0f17] border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-cyan-500 cursor-pointer"
+            className="bg-[#171A19] border border-[#414A43] focus:border-[#78A887] rounded px-2 py-1 text-xs text-[#F1F0E9] font-mono focus:outline-none cursor-pointer"
           >
             <option value="all">All Node Types</option>
             <option value="file">Files Only</option>
-            <option value="directory">Directories / Modules</option>
+            <option value="directory">Directories</option>
             <option value="class">Classes</option>
             <option value="function">Functions</option>
-            <option value="external">External Dependencies</option>
+            <option value="external">External</option>
           </select>
 
           {/* Relationship Filter */}
           <select
             value={relationFilter}
             onChange={(e) => setRelationFilter(e.target.value)}
-            className="bg-[#0b0f17] border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-cyan-500 cursor-pointer hidden lg:block"
+            className="bg-[#171A19] border border-[#414A43] focus:border-[#78A887] rounded px-2 py-1 text-xs text-[#F1F0E9] font-mono focus:outline-none cursor-pointer hidden lg:block"
           >
             <option value="all">All Relationships</option>
             <option value="imports">Imports Only</option>
@@ -803,51 +797,51 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
           {/* Trace Dependency Mode Toggle */}
           <button
             onClick={() => setIsTraceMode(!isTraceMode)}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-mono flex items-center space-x-1.5 transition border ${
+            className={`px-2 py-1 rounded text-xs font-mono flex items-center space-x-1 transition border cursor-pointer ${
               isTraceMode
-                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/60 shadow-sm shadow-emerald-500/20'
-                : 'bg-[#0b0f17] text-slate-400 border-slate-700/80 hover:text-slate-200'
+                ? 'bg-[#263A2D] text-[#81C995] border-[#537B5D]'
+                : 'bg-[#171A19] text-[#B1B7B1] border-[#414A43] hover:text-[#F1F0E9]'
             }`}
             title="Toggle Trace Dependency Mode"
           >
             <Crosshair className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Trace Dependency</span>
+            <span className="hidden sm:inline">Trace</span>
           </button>
 
           {/* Focus Mode Toggle */}
           <button
             onClick={() => setIsFocusMode(!isFocusMode)}
             disabled={!selectedNodeId}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-mono flex items-center space-x-1.5 transition border disabled:opacity-40 disabled:cursor-not-allowed ${
+            className={`px-2 py-1 rounded text-xs font-mono flex items-center space-x-1 transition border disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
               isFocusMode
-                ? 'bg-cyan-950/80 text-cyan-300 border-cyan-500/60 shadow-sm shadow-cyan-500/20'
-                : 'bg-[#0b0f17] text-slate-400 border-slate-700/80 hover:text-slate-200'
+                ? 'bg-[#263A2D] text-[#81C995] border-[#537B5D]'
+                : 'bg-[#171A19] text-[#B1B7B1] border-[#414A43] hover:text-[#F1F0E9]'
             }`}
             title="Focus on selected node and direct connections"
           >
             <Eye className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Focus Mode</span>
+            <span className="hidden sm:inline">Focus</span>
           </button>
 
           {/* Zoom & Fit Actions */}
-          <div className="flex items-center bg-[#0b0f17] border border-slate-700/80 rounded-lg p-0.5 space-x-0.5">
+          <div className="flex items-center bg-[#171A19] border border-[#414A43] rounded p-0.5 space-x-0.5">
             <button
               onClick={() => setZoom((z) => Math.min(2.2, z + 0.15))}
-              className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition"
+              className="p-1 hover:bg-[#262C28] rounded text-[#B1B7B1] hover:text-[#F1F0E9] transition cursor-pointer"
               title="Zoom In"
             >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setZoom((z) => Math.max(0.35, z - 0.15))}
-              className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition"
+              className="p-1 hover:bg-[#262C28] rounded text-[#B1B7B1] hover:text-[#F1F0E9] transition cursor-pointer"
               title="Zoom Out"
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={handleFitView}
-              className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition text-xs font-mono px-1.5"
+              className="p-1 hover:bg-[#262C28] rounded text-[#B1B7B1] hover:text-[#F1F0E9] transition text-xs font-mono px-1.5 cursor-pointer"
               title="Fit Graph to Viewport"
             >
               Fit
@@ -855,7 +849,7 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
             {selectedNodeId && (
               <button
                 onClick={handleCenterSelected}
-                className="p-1 hover:bg-slate-800 rounded text-cyan-400 hover:text-cyan-300 transition"
+                className="p-1 hover:bg-[#262C28] rounded text-[#78A887] hover:text-[#8AB898] transition cursor-pointer"
                 title="Center Selected Node"
               >
                 <Maximize2 className="w-3.5 h-3.5" />
@@ -863,7 +857,7 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
             )}
             <button
               onClick={handleResetLayout}
-              className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition"
+              className="p-1 hover:bg-[#262C28] rounded text-[#B1B7B1] hover:text-[#F1F0E9] transition cursor-pointer"
               title="Reset View"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -872,45 +866,45 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Architecture Overview & AI Summary Banner (Sections 11 & 12) */}
-      <div className="border-b border-slate-800/90 bg-[#080d16] px-5 py-2.5 z-10 shrink-0">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs font-mono">
+      {/* 2. Architecture Overview & Summary Banner */}
+      <div className="border-b border-[#343B36] bg-[#202522] px-4 py-2 z-10 shrink-0">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 text-xs font-mono">
           {/* Key Metric Pills */}
-          <div className="flex flex-wrap items-center gap-3 text-slate-300">
-            <div className="flex items-center space-x-1.5 bg-slate-900/80 border border-slate-800 px-2.5 py-1 rounded-md">
-              <span className="text-slate-500 text-[10px] uppercase">Nodes</span>
-              <span className="text-cyan-300 font-bold">{stats.totalNodes}</span>
+          <div className="flex flex-wrap items-center gap-2 text-[#B1B7B1]">
+            <div className="flex items-center space-x-1.5 bg-[#262C28] border border-[#343B36] px-2 py-0.5 rounded">
+              <span className="text-[#858E86] text-[10px] uppercase">Nodes</span>
+              <span className="text-[#F1F0E9] font-medium">{stats.totalNodes}</span>
             </div>
-            <div className="flex items-center space-x-1.5 bg-slate-900/80 border border-slate-800 px-2.5 py-1 rounded-md">
-              <span className="text-slate-500 text-[10px] uppercase">Edges</span>
-              <span className="text-slate-200 font-bold">{stats.totalEdges}</span>
+            <div className="flex items-center space-x-1.5 bg-[#262C28] border border-[#343B36] px-2 py-0.5 rounded">
+              <span className="text-[#858E86] text-[10px] uppercase">Edges</span>
+              <span className="text-[#F1F0E9] font-medium">{stats.totalEdges}</span>
             </div>
-            <div className="flex items-center space-x-1.5 bg-slate-900/80 border border-slate-800 px-2.5 py-1 rounded-md">
-              <span className="text-slate-500 text-[10px] uppercase">Files</span>
-              <span className="text-cyan-400 font-bold">{stats.filesCount}</span>
+            <div className="flex items-center space-x-1.5 bg-[#262C28] border border-[#343B36] px-2 py-0.5 rounded">
+              <span className="text-[#858E86] text-[10px] uppercase">Files</span>
+              <span className="text-[#B9D9BE] font-medium">{stats.filesCount}</span>
             </div>
-            <div className="flex items-center space-x-1.5 bg-slate-900/80 border border-slate-800 px-2.5 py-1 rounded-md">
-              <span className="text-slate-500 text-[10px] uppercase">Modules</span>
-              <span className="text-indigo-400 font-bold">{stats.modulesCount}</span>
+            <div className="flex items-center space-x-1.5 bg-[#262C28] border border-[#343B36] px-2 py-0.5 rounded">
+              <span className="text-[#858E86] text-[10px] uppercase">Modules</span>
+              <span className="text-[#F1F0E9] font-medium">{stats.modulesCount}</span>
             </div>
-            <div className="flex items-center space-x-1.5 bg-slate-900/80 border border-slate-800 px-2.5 py-1 rounded-md">
-              <span className="text-slate-500 text-[10px] uppercase">Classes</span>
-              <span className="text-amber-400 font-bold">{stats.classesCount}</span>
+            <div className="flex items-center space-x-1.5 bg-[#262C28] border border-[#343B36] px-2 py-0.5 rounded">
+              <span className="text-[#858E86] text-[10px] uppercase">Classes</span>
+              <span className="text-[#D6A85F] font-medium">{stats.classesCount}</span>
             </div>
-            <div className="flex items-center space-x-1.5 bg-slate-900/80 border border-slate-800 px-2.5 py-1 rounded-md">
-              <span className="text-slate-500 text-[10px] uppercase">External</span>
-              <span className="text-emerald-400 font-bold">{stats.externalDepsCount}</span>
+            <div className="flex items-center space-x-1.5 bg-[#262C28] border border-[#343B36] px-2 py-0.5 rounded">
+              <span className="text-[#858E86] text-[10px] uppercase">External</span>
+              <span className="text-[#81C995] font-medium">{stats.externalDepsCount}</span>
             </div>
             {stats.mainEntryPoint && (
-              <div className="flex items-center space-x-1 text-slate-400 pl-2 border-l border-slate-800">
-                <span className="text-slate-500 text-[10px] uppercase">Entrypoint:</span>
-                <span className="text-cyan-300 font-semibold">{stats.mainEntryPoint}</span>
+              <div className="flex items-center space-x-1 text-[#858E86] pl-2 border-l border-[#343B36]">
+                <span className="text-[10px] uppercase">Entrypoint:</span>
+                <span className="text-[#F1F0E9] font-medium">{stats.mainEntryPoint}</span>
               </div>
             )}
             {stats.mostConnectedModule && (
-              <div className="flex items-center space-x-1 text-slate-400 pl-2 border-l border-slate-800 hidden sm:flex">
-                <span className="text-slate-500 text-[10px] uppercase">Hub:</span>
-                <span className="text-teal-300 font-semibold">{stats.mostConnectedModule}</span>
+              <div className="flex items-center space-x-1 text-[#858E86] pl-2 border-l border-[#343B36] hidden sm:flex">
+                <span className="text-[10px] uppercase">Hub:</span>
+                <span className="text-[#78A887] font-medium">{stats.mostConnectedModule}</span>
               </div>
             )}
           </div>
@@ -919,10 +913,10 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
-              className="flex items-center space-x-1.5 text-cyan-300 hover:text-cyan-200 bg-cyan-950/40 hover:bg-cyan-950/70 border border-cyan-800/60 px-2.5 py-1 rounded-md text-[11px] font-mono transition"
+              className="flex items-center space-x-1.5 text-[#F1F0E9] hover:text-[#B9D9BE] bg-[#262C28] hover:bg-[#2B322D] border border-[#414A43] px-2.5 py-1 rounded text-[11px] font-mono transition cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-              <span>AI Architecture Summary</span>
+              <Sparkles className="w-3.5 h-3.5 text-[#78A887]" />
+              <span>Architecture Summary</span>
               {isSummaryExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             </button>
 
@@ -933,10 +927,10 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
                     `Explain the architecture structure of repository ${currentRepo?.name || ''}, detailing interactions between entrypoint ${stats.mainEntryPoint} and modules like ${stats.mostConnectedModule}.`,
                   )
                 }
-                className="flex items-center space-x-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2.5 py-1 rounded-md text-[11px] font-mono border border-slate-700 transition"
+                className="flex items-center space-x-1 bg-[#262C28] hover:bg-[#2B322D] text-[#F1F0E9] px-2.5 py-1 rounded text-[11px] font-mono border border-[#414A43] transition cursor-pointer"
               >
-                <span>Ask AI About Architecture</span>
-                <ArrowRight className="w-3 h-3 text-cyan-400" />
+                <span>Ask AI</span>
+                <ArrowRight className="w-3 h-3 text-[#78A887]" />
               </button>
             )}
           </div>
@@ -944,10 +938,10 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
 
         {/* Collapsible AI Architecture Narrative */}
         {isSummaryExpanded && (
-          <div className="mt-2.5 pt-2.5 border-t border-slate-800/70 flex items-start space-x-2.5 text-xs font-sans text-slate-300 leading-relaxed bg-[#0b101d]/60 p-3 rounded-lg border border-cyan-950/50">
-            <Sparkles className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+          <div className="mt-2 pt-2 border-t border-[#343B36] flex items-start space-x-2 text-xs font-sans text-[#B1B7B1] leading-relaxed bg-[#262C28] p-2.5 rounded border border-[#343B36]">
+            <Sparkles className="w-3.5 h-3.5 text-[#78A887] shrink-0 mt-0.5" />
             <div className="flex-1">
-              <span className="font-semibold text-cyan-300 font-mono text-[11px] uppercase mr-1.5">
+              <span className="font-semibold text-[#F1F0E9] font-mono text-[11px] uppercase mr-1.5">
                 Grounded Architectural Analysis:
               </span>
               <span>{stats.aiSummary}</span>
@@ -959,7 +953,7 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
       {/* 3. Main Graph Workspace + Canvas */}
       <div
         ref={containerRef}
-        className="flex-1 relative flex overflow-hidden"
+        className="flex-1 relative flex overflow-hidden bg-[#171A19]"
         onWheel={handleWheel}
       >
         {/* Interactive SVG Canvas */}
@@ -971,10 +965,10 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
         >
           {/* Subtle Engineering Grid Background */}
           <div
-            className="absolute inset-0 opacity-15 pointer-events-none"
+            className="absolute inset-0 opacity-20 pointer-events-none"
             style={{
-              backgroundImage: 'radial-gradient(#38bdf8 1px, transparent 1px)',
-              backgroundSize: '28px 28px',
+              backgroundImage: 'radial-gradient(#343B36 1px, transparent 1px)',
+              backgroundSize: '24px 24px',
             }}
           ></div>
 
@@ -1010,7 +1004,7 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
                 refY="3"
                 orient="auto"
               >
-                <polygon points="0 0, 8 3, 0 6" fill="#06b6d4" />
+                <polygon points="0 0, 8 3, 0 6" fill="#78A887" />
               </marker>
               <marker
                 id="arrow-calls"
@@ -1020,7 +1014,7 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
                 refY="3"
                 orient="auto"
               >
-                <polygon points="0 0, 8 3, 0 6" fill="#a855f7" />
+                <polygon points="0 0, 8 3, 0 6" fill="#91B8D2" />
               </marker>
               <marker
                 id="arrow-inherits"
@@ -1030,7 +1024,7 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
                 refY="3"
                 orient="auto"
               >
-                <polygon points="0 0, 8 3, 0 6" fill="#f59e0b" />
+                <polygon points="0 0, 8 3, 0 6" fill="#D6A85F" />
               </marker>
               <marker
                 id="arrow-depends_on"
@@ -1040,7 +1034,7 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
                 refY="3"
                 orient="auto"
               >
-                <polygon points="0 0, 8 3, 0 6" fill="#14b8a6" />
+                <polygon points="0 0, 8 3, 0 6" fill="#81C995" />
               </marker>
               <marker
                 id="arrow-contains"
@@ -1050,7 +1044,7 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
                 refY="2"
                 orient="auto"
               >
-                <polygon points="0 0, 6 2, 0 4" fill="#64748b" />
+                <polygon points="0 0, 6 2, 0 4" fill="#687069" />
               </marker>
               <marker
                 id="arrow-highlighted"
@@ -1060,7 +1054,7 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
                 refY="3.5"
                 orient="auto"
               >
-                <polygon points="0 0, 10 3.5, 0 7" fill="#38bdf8" />
+                <polygon points="0 0, 10 3.5, 0 7" fill="#D6A85F" />
               </marker>
             </defs>
 
@@ -1084,33 +1078,33 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
               const isHovered = hoveredEdgeId === edge.id;
 
               // Line Style and Color based on relationship
-              let strokeColor = '#38bdf8';
+              let strokeColor = '#414A43';
               let strokeDash: string | undefined = undefined;
-              let strokeWidth = 1.3;
+              let strokeWidth = 1.2;
 
               if (edge.relationship === 'inherits') {
-                strokeColor = '#f59e0b';
+                strokeColor = '#D6A85F';
                 strokeDash = '3 3';
-                strokeWidth = 1.6;
+                strokeWidth = 1.4;
               } else if (edge.relationship === 'calls') {
-                strokeColor = '#a855f7';
-                strokeDash = '5 3';
-                strokeWidth = 1.5;
-              } else if (edge.relationship === 'depends_on') {
-                strokeColor = '#14b8a6';
+                strokeColor = '#91B8D2';
                 strokeDash = '4 2';
+                strokeWidth = 1.3;
+              } else if (edge.relationship === 'depends_on') {
+                strokeColor = '#78A887';
+                strokeDash = '3 2';
               } else if (edge.relationship === 'contains') {
-                strokeColor = '#475569';
+                strokeColor = '#343B36';
                 strokeDash = '2 2';
                 strokeWidth = 1.0;
               }
 
               if (isOutgoing) {
-                strokeColor = '#06b6d4'; // Bright cyan for outgoing callees/imports
-                strokeWidth = 2.4;
+                strokeColor = '#78A887';
+                strokeWidth = 2.0;
               } else if (isIncoming) {
-                strokeColor = '#10b981'; // Emerald for incoming callers
-                strokeWidth = 2.4;
+                strokeColor = '#81C995';
+                strokeWidth = 2.0;
               }
 
               const pathString = getEdgePath(srcPos, tgtPos);
@@ -1119,13 +1113,13 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
                 : `url(#arrow-${edge.relationship || 'imports'})`;
 
               return (
-                <g key={edge.id} className="transition-all duration-300">
+                <g key={edge.id} className="transition-all duration-200">
                   <path
                     d={pathString}
                     fill="none"
                     stroke={strokeColor}
-                    strokeWidth={isHovered ? strokeWidth + 1.2 : strokeWidth}
-                    strokeOpacity={isDimmed ? 0.12 : isConnectedToSelected ? 0.95 : 0.45}
+                    strokeWidth={isHovered ? strokeWidth + 1.0 : strokeWidth}
+                    strokeOpacity={isDimmed ? 0.15 : isConnectedToSelected ? 0.95 : 0.55}
                     strokeDasharray={strokeDash}
                     markerEnd={markerType}
                     onMouseEnter={() => setHoveredEdgeId(edge.id)}
@@ -1137,7 +1131,7 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
                     <text
                       fontSize="9"
                       fontFamily="JetBrains Mono, monospace"
-                      fill={isOutgoing ? '#38bdf8' : isIncoming ? '#34d399' : '#94a3b8'}
+                      fill={isOutgoing ? '#78A887' : isIncoming ? '#81C995' : '#858E86'}
                       textAnchor="middle"
                       className="pointer-events-none drop-shadow"
                     >
@@ -1154,7 +1148,7 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
             })}
           </svg>
 
-          {/* HTML Nodes Layer (Cards rendered at exact zoom & pan) */}
+          {/* HTML Nodes Layer */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
@@ -1172,35 +1166,35 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
               const isConnected = selectionInfo?.connectedNodeIds.has(node.id);
               const isDimmed = selectedNodeId && !isSelected && !isConnected;
 
-              // Node type icon & colors
+              // Node type icon & colors according to design system
               let Icon = FileCode;
-              let borderClass = 'border-slate-800 hover:border-slate-700 bg-slate-900/90 text-slate-200';
+              let borderClass = 'border-[#414A43] hover:border-[#537B5D] bg-[#262C28] text-[#F1F0E9]';
               let badgeText = node.type.toUpperCase();
 
               if (node.type === 'repository') {
                 Icon = Compass;
-                borderClass = 'border-cyan-500/60 bg-[#0c182c] shadow-lg shadow-cyan-950/40 text-cyan-200';
+                borderClass = 'border-[#537B5D] bg-[#263A2D] text-[#F1F0E9]';
               } else if (node.type === 'directory') {
                 Icon = Folder;
-                borderClass = 'border-indigo-800/60 bg-[#0f1424] text-indigo-200';
+                borderClass = 'border-[#343B36] bg-[#202522] text-[#B1B7B1]';
               } else if (node.type === 'class') {
                 Icon = Binary;
-                borderClass = 'border-amber-800/60 bg-[#16130d] text-amber-200';
+                borderClass = 'border-[#414A43] bg-[#262C28] text-[#F1F0E9]';
               } else if (node.type === 'function') {
                 Icon = Code2;
-                borderClass = 'border-purple-800/60 bg-[#150f1f] text-purple-200';
+                borderClass = 'border-[#414A43] bg-[#262C28] text-[#F1F0E9]';
               } else if (node.type === 'external') {
                 Icon = Package;
-                borderClass = 'border-emerald-800/60 bg-[#0b1916] text-emerald-200';
+                borderClass = 'border-[#414A43] bg-[#202522] text-[#B1B7B1]';
               }
 
               // Highlight styling
               if (isSelected) {
-                borderClass = 'border-cyan-400 bg-cyan-950 ring-2 ring-cyan-400/50 shadow-xl shadow-cyan-900/40 text-white';
+                borderClass = 'border-[#78A887] bg-[#263A2D] ring-2 ring-[#78A887]/40 text-[#F1F0E9]';
               } else if (isDirectOutgoing) {
-                borderClass = 'border-cyan-500 bg-[#0c1d2e] ring-1 ring-cyan-400/40 text-cyan-100';
+                borderClass = 'border-[#537B5D] bg-[#263A2D] text-[#B9D9BE]';
               } else if (isDirectIncoming) {
-                borderClass = 'border-emerald-500 bg-[#0a1e1b] ring-1 ring-emerald-400/40 text-emerald-100';
+                borderClass = 'border-[#537B5D] bg-[#263A2D] text-[#81C995]';
               }
 
               const isFile = node.type === 'file';
@@ -1221,29 +1215,29 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
                     top: `${pos.y}px`,
                     width: `${pos.width}px`,
                     height: `${pos.height}px`,
-                    opacity: isDimmed ? 0.16 : 1,
+                    opacity: isDimmed ? 0.2 : 1,
                     cursor: draggingNodeId === node.id ? 'grabbing' : 'grab',
                   }}
-                  className={`interactive-node-card pointer-events-auto rounded-xl border p-2.5 transition-shadow duration-150 flex flex-col justify-between select-none active:scale-[1.01] shadow-md hover:shadow-cyan-950/60 ${borderClass}`}
+                  className={`interactive-node-card pointer-events-auto rounded-md border p-2.5 transition-shadow duration-150 flex flex-col justify-between select-none ${borderClass}`}
                   title="Click to inspect • Drag to reposition"
                 >
                   {/* Top row: Icon, Name & Type Badge */}
                   <div className="flex items-center justify-between space-x-1.5 truncate">
                     <div className="flex items-center space-x-1.5 truncate">
-                      <Icon className="w-3.5 h-3.5 shrink-0 opacity-90" />
-                      <span className="text-xs font-mono font-bold truncate" title={node.name}>
+                      <Icon className="w-3.5 h-3.5 shrink-0 text-[#78A887]" />
+                      <span className="text-xs font-mono font-medium truncate" title={node.name}>
                         {node.name}
                       </span>
                     </div>
 
                     {/* Node Type or Language Badge */}
-                    <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-950/80 border border-slate-800/80 uppercase shrink-0">
+                    <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-[#171A19] border border-[#343B36] text-[#858E86] uppercase shrink-0">
                       {node.language || badgeText}
                     </span>
                   </div>
 
                   {/* Bottom row: Metrics, Symbols count, or Expansion */}
-                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-1">
+                  <div className="flex items-center justify-between text-[10px] font-mono text-[#858E86] pt-1">
                     {isFile ? (
                       <>
                         <span className="truncate">
@@ -1252,7 +1246,7 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
                         {hasSymbols && (
                           <button
                             onClick={(e) => toggleFileExpansion(node.id, e)}
-                            className="text-[9px] text-cyan-400 hover:text-cyan-200 bg-cyan-950/80 px-1.5 py-0.2 rounded border border-cyan-800/60 flex items-center space-x-0.5"
+                            className="text-[9px] text-[#78A887] hover:text-[#B9D9BE] bg-[#202522] px-1.5 py-0.2 rounded border border-[#343B36] flex items-center space-x-0.5 cursor-pointer"
                             title="Expand / collapse symbols"
                           >
                             <span>{node.symbolCount} syms</span>
@@ -1263,26 +1257,26 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
                     ) : node.type === 'class' ? (
                       <>
                         <span>{node.details?.methodsCount || 0} methods</span>
-                        <span className="text-amber-400 text-[9px]">Class</span>
+                        <span className="text-[#D6A85F] text-[9px]">Class</span>
                       </>
                     ) : node.type === 'function' ? (
-                      <span className="truncate text-purple-300">
+                      <span className="truncate text-[#B1B7B1]">
                         {node.details?.signature ? node.details.signature.slice(0, 18) + '...' : 'func'}
                       </span>
                     ) : node.type === 'external' ? (
-                      <span className="text-emerald-400 text-[9px]">Third-Party</span>
+                      <span className="text-[#81C995] text-[9px]">Third-Party</span>
                     ) : (
                       <span>{node.degree ? `${node.degree} links` : ''}</span>
                     )}
 
                     {/* Trace Indicator Badge if in Trace Mode */}
                     {isTraceMode && isDirectOutgoing && (
-                      <span className="text-[9px] text-cyan-400 font-bold flex items-center">
+                      <span className="text-[9px] text-[#78A887] font-bold flex items-center">
                         <ArrowUpRight className="w-2.5 h-2.5 mr-0.5" /> OUT
                       </span>
                     )}
                     {isTraceMode && isDirectIncoming && (
-                      <span className="text-[9px] text-emerald-400 font-bold flex items-center">
+                      <span className="text-[9px] text-[#81C995] font-bold flex items-center">
                         <ArrowDownLeft className="w-2.5 h-2.5 mr-0.5" /> IN
                       </span>
                     )}
@@ -1293,66 +1287,66 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
           </div>
         </div>
 
-        {/* 4. Collapsible Graph Legend (Section 10) */}
+        {/* 4. Collapsible Graph Legend */}
         <div className="absolute bottom-4 left-4 z-20">
           {isLegendOpen ? (
-            <div className="bg-[#090d16]/95 border border-slate-800 rounded-xl p-3.5 space-y-3 shadow-xl backdrop-blur-md text-xs font-mono w-64">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <span className="font-bold text-slate-200 uppercase text-[10px] tracking-wider">
+            <div className="bg-[#202522] border border-[#414A43] rounded-lg p-3 space-y-2.5 shadow-xl text-xs font-mono w-60">
+              <div className="flex items-center justify-between pb-1.5 border-b border-[#343B36]">
+                <span className="font-semibold text-[#F1F0E9] uppercase text-[10px] tracking-wider">
                   Graph Legend
                 </span>
                 <button
                   onClick={() => setIsLegendOpen(false)}
-                  className="text-slate-400 hover:text-white"
+                  className="text-[#858E86] hover:text-[#F1F0E9] cursor-pointer"
                 >
                   &times;
                 </button>
               </div>
 
               {/* Node Types */}
-              <div className="space-y-1.5">
-                <p className="text-[10px] text-slate-500 uppercase font-semibold">Node Types</p>
-                <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-                  <span className="flex items-center space-x-1.5 text-cyan-300">
-                    <Compass className="w-3.5 h-3.5" /> <span>Repository</span>
+              <div className="space-y-1">
+                <p className="text-[10px] text-[#858E86] uppercase font-semibold">Node Types</p>
+                <div className="grid grid-cols-2 gap-1 text-[11px]">
+                  <span className="flex items-center space-x-1 text-[#78A887]">
+                    <Compass className="w-3 h-3" /> <span>Repository</span>
                   </span>
-                  <span className="flex items-center space-x-1.5 text-indigo-300">
-                    <Folder className="w-3.5 h-3.5" /> <span>Directory</span>
+                  <span className="flex items-center space-x-1 text-[#B1B7B1]">
+                    <Folder className="w-3 h-3" /> <span>Directory</span>
                   </span>
-                  <span className="flex items-center space-x-1.5 text-slate-200">
-                    <FileCode className="w-3.5 h-3.5 text-cyan-400" /> <span>File</span>
+                  <span className="flex items-center space-x-1 text-[#F1F0E9]">
+                    <FileCode className="w-3 h-3 text-[#78A887]" /> <span>File</span>
                   </span>
-                  <span className="flex items-center space-x-1.5 text-amber-300">
-                    <Binary className="w-3.5 h-3.5" /> <span>Class</span>
+                  <span className="flex items-center space-x-1 text-[#D6A85F]">
+                    <Binary className="w-3 h-3" /> <span>Class</span>
                   </span>
-                  <span className="flex items-center space-x-1.5 text-purple-300">
-                    <Code2 className="w-3.5 h-3.5" /> <span>Function</span>
+                  <span className="flex items-center space-x-1 text-[#B1B7B1]">
+                    <Code2 className="w-3 h-3" /> <span>Function</span>
                   </span>
-                  <span className="flex items-center space-x-1.5 text-emerald-300">
-                    <Package className="w-3.5 h-3.5" /> <span>External</span>
+                  <span className="flex items-center space-x-1 text-[#81C995]">
+                    <Package className="w-3 h-3" /> <span>External</span>
                   </span>
                 </div>
               </div>
 
               {/* Relationships */}
-              <div className="space-y-1.5 pt-2 border-t border-slate-800/80">
-                <p className="text-[10px] text-slate-500 uppercase font-semibold">Relationships</p>
-                <div className="space-y-1 text-[11px] text-slate-300">
+              <div className="space-y-1 pt-1.5 border-t border-[#343B36]">
+                <p className="text-[10px] text-[#858E86] uppercase font-semibold">Relationships</p>
+                <div className="space-y-0.5 text-[11px] text-[#B1B7B1]">
                   <div className="flex items-center justify-between">
-                    <span className="text-cyan-400">&mdash;&rarr; Imports</span>
-                    <span className="text-[10px] text-slate-500">Solid Cyan</span>
+                    <span className="text-[#78A887]">&mdash;&rarr; Imports</span>
+                    <span className="text-[10px] text-[#858E86]">Green</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-purple-400">---&rarr; Calls</span>
-                    <span className="text-[10px] text-slate-500">Dashed Purple</span>
+                    <span className="text-[#91B8D2]">---&rarr; Calls</span>
+                    <span className="text-[10px] text-[#858E86]">Blue</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-amber-400">&middot;&middot;&middot;&rarr; Inherits</span>
-                    <span className="text-[10px] text-slate-500">Dotted Amber</span>
+                    <span className="text-[#D6A85F]">&middot;&middot;&middot;&rarr; Inherits</span>
+                    <span className="text-[10px] text-[#858E86]">Amber</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400">&middot;&middot;&middot; Contains</span>
-                    <span className="text-[10px] text-slate-500">Subtle Slate</span>
+                    <span className="text-[#858E86]">&middot;&middot;&middot; Contains</span>
+                    <span className="text-[10px] text-[#858E86]">Subtle</span>
                   </div>
                 </div>
               </div>
@@ -1360,154 +1354,152 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
           ) : (
             <button
               onClick={() => setIsLegendOpen(true)}
-              className="bg-[#090d16]/90 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg text-xs font-mono flex items-center space-x-1.5 shadow-md backdrop-blur-md"
+              className="bg-[#202522] border border-[#414A43] hover:border-[#537B5D] text-[#B1B7B1] hover:text-[#F1F0E9] px-2.5 py-1 rounded text-xs font-mono flex items-center space-x-1.5 shadow-md cursor-pointer"
             >
-              <Info className="w-3.5 h-3.5 text-cyan-400" />
+              <Info className="w-3.5 h-3.5 text-[#78A887]" />
               <span>Legend</span>
             </button>
           )}
         </div>
 
         {/* Floating Controls HUD: Zoom, Fit, Reset & Adjustments */}
-        <div className="absolute bottom-6 right-6 z-20 flex items-center bg-[#0a101d]/95 backdrop-blur-md border border-cyan-500/40 rounded-xl p-1.5 shadow-2xl shadow-cyan-950/60 space-x-1 font-mono text-xs text-slate-200">
+        <div className="absolute bottom-4 right-4 z-20 flex items-center bg-[#202522] border border-[#414A43] rounded p-1 space-x-1 font-mono text-xs text-[#F1F0E9] shadow-lg">
           <button
             onClick={() => setZoom((z) => Math.max(0.25, parseFloat((z - 0.15).toFixed(2))))}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-900/90 hover:bg-slate-800 hover:text-cyan-300 border border-slate-700/60 transition active:scale-95 cursor-pointer"
-            title="Zoom Out (or Scroll Mouse Wheel Down)"
+            className="w-7 h-7 flex items-center justify-center rounded bg-[#262C28] hover:bg-[#2B322D] text-[#B1B7B1] hover:text-[#F1F0E9] border border-[#343B36] transition cursor-pointer"
+            title="Zoom Out"
           >
-            <ZoomOut className="w-4 h-4" />
+            <ZoomOut className="w-3.5 h-3.5" />
           </button>
-          <div className="px-2 py-1 text-center font-bold text-cyan-300 min-w-[50px] select-none text-[11px]">
+          <div className="px-1.5 text-center font-medium text-[#B9D9BE] min-w-[45px] select-none text-[11px]">
             {Math.round(zoom * 100)}%
           </div>
           <button
             onClick={() => setZoom((z) => Math.min(2.5, parseFloat((z + 0.15).toFixed(2))))}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-900/90 hover:bg-slate-800 hover:text-cyan-300 border border-slate-700/60 transition active:scale-95 cursor-pointer"
-            title="Zoom In (or Scroll Mouse Wheel Up)"
+            className="w-7 h-7 flex items-center justify-center rounded bg-[#262C28] hover:bg-[#2B322D] text-[#B1B7B1] hover:text-[#F1F0E9] border border-[#343B36] transition cursor-pointer"
+            title="Zoom In"
           >
-            <ZoomIn className="w-4 h-4" />
+            <ZoomIn className="w-3.5 h-3.5" />
           </button>
-          <div className="h-4 w-[1px] bg-slate-700/80 mx-1"></div>
+          <div className="h-4 w-[1px] bg-[#343B36] mx-0.5"></div>
           <button
             onClick={handleFitView}
-            className="px-2.5 h-8 flex items-center justify-center rounded-lg bg-slate-900/90 hover:bg-slate-800 hover:text-cyan-300 border border-slate-700/60 transition text-[11px] font-semibold active:scale-95 cursor-pointer"
+            className="px-2 h-7 flex items-center justify-center rounded bg-[#262C28] hover:bg-[#2B322D] text-[#F1F0E9] border border-[#343B36] transition text-[11px] font-medium cursor-pointer"
             title="Fit Graph to Screen"
           >
             Fit
           </button>
           <button
             onClick={handleResetLayout}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-900/90 hover:bg-slate-800 hover:text-cyan-300 border border-slate-700/60 transition active:scale-95 cursor-pointer"
-            title="Reset Zoom, Pan & Repositioned Nodes"
+            className="w-7 h-7 flex items-center justify-center rounded bg-[#262C28] hover:bg-[#2B322D] text-[#B1B7B1] hover:text-[#F1F0E9] border border-[#343B36] transition cursor-pointer"
+            title="Reset Zoom & Pan"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* Quick Instructions Overlay */}
-        <div className="absolute bottom-6 left-28 z-10 hidden md:flex items-center space-x-2 bg-slate-900/80 backdrop-blur-md border border-slate-800 px-3 py-1.5 rounded-lg text-[10px] font-mono text-slate-400 select-none pointer-events-none">
-          <span className="text-cyan-400 font-semibold">Controls:</span>
+        <div className="absolute bottom-4 left-24 z-10 hidden md:flex items-center space-x-2 bg-[#202522]/90 border border-[#343B36] px-2.5 py-1 rounded text-[10px] font-mono text-[#858E86] select-none pointer-events-none">
+          <span className="text-[#78A887] font-medium">Controls:</span>
           <span>Scroll to Zoom</span>
           <span>•</span>
-          <span>Drag Background to Pan</span>
-          <span>•</span>
-          <span>Drag any Node to Adjust</span>
+          <span>Drag to Pan / Adjust Nodes</span>
         </div>
 
-        {/* 5. Right-Side Node Details Drawer (Section 7) */}
+        {/* 5. Right-Side Node Details Drawer */}
         {selectedNode && (
-          <aside className="w-80 md:w-96 border-l border-slate-800 bg-[#090d16]/98 backdrop-blur-xl flex flex-col justify-between shrink-0 z-30 shadow-2xl overflow-y-auto">
-            <div className="p-5 space-y-5">
+          <aside className="w-80 md:w-88 border-l border-[#343B36] bg-[#202522] flex flex-col justify-between shrink-0 z-30 shadow-xl overflow-y-auto">
+            <div className="p-4 space-y-4">
               {/* Header */}
-              <div className="flex items-start justify-between pb-3 border-b border-slate-800">
-                <div className="space-y-1">
-                  <span className="text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/70">
+              <div className="flex items-start justify-between pb-2.5 border-b border-[#343B36]">
+                <div className="space-y-1 min-w-0 pr-2">
+                  <span className="text-[9px] uppercase font-mono px-1.5 py-0.2 rounded bg-[#263A2D] text-[#81C995] border border-[#537B5D]">
                     {selectedNode.type}
                   </span>
-                  <h2 className="text-base font-bold text-white font-mono break-all pt-1">
+                  <h2 className="text-sm font-semibold text-[#F1F0E9] font-mono break-all pt-1">
                     {selectedNode.name}
                   </h2>
                 </div>
                 <button
                   onClick={() => setSelectedNodeId(null)}
-                  className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 text-sm font-mono"
+                  className="text-[#858E86] hover:text-[#F1F0E9] p-1 rounded hover:bg-[#262C28] cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
               {/* Metadata attributes */}
-              <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-[#0b0f17] border border-slate-800/80 p-3 rounded-xl">
+              <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-[#171A19] border border-[#343B36] p-2.5 rounded">
                 <div>
-                  <span className="text-slate-500 text-[10px] uppercase block">Language</span>
-                  <span className="text-slate-200 font-semibold">{selectedNode.language || 'N/A'}</span>
+                  <span className="text-[#858E86] text-[10px] uppercase block">Language</span>
+                  <span className="text-[#F1F0E9] font-medium">{selectedNode.language || 'N/A'}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 text-[10px] uppercase block">Lines</span>
-                  <span className="text-slate-200 font-semibold">{selectedNode.linesCount || 'N/A'}</span>
+                  <span className="text-[#858E86] text-[10px] uppercase block">Lines</span>
+                  <span className="text-[#F1F0E9] font-medium">{selectedNode.linesCount || 'N/A'}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 text-[10px] uppercase block">In-Degree (Callers)</span>
-                  <span className="text-emerald-400 font-bold">{selectedNode.inDegree || 0}</span>
+                  <span className="text-[#858E86] text-[10px] uppercase block">In-Degree (Callers)</span>
+                  <span className="text-[#81C995] font-semibold">{selectedNode.inDegree || 0}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 text-[10px] uppercase block">Out-Degree (Callees)</span>
-                  <span className="text-cyan-400 font-bold">{selectedNode.outDegree || 0}</span>
+                  <span className="text-[#858E86] text-[10px] uppercase block">Out-Degree (Callees)</span>
+                  <span className="text-[#78A887] font-semibold">{selectedNode.outDegree || 0}</span>
                 </div>
                 {selectedNode.path && (
-                  <div className="col-span-2 pt-1 border-t border-slate-800">
-                    <span className="text-slate-500 text-[10px] uppercase block">Path</span>
-                    <span className="text-slate-300 break-all text-[11px]">{selectedNode.path}</span>
+                  <div className="col-span-2 pt-1 border-t border-[#343B36]">
+                    <span className="text-[#858E86] text-[10px] uppercase block">Path</span>
+                    <span className="text-[#B1B7B1] break-all text-[11px]">{selectedNode.path}</span>
                   </div>
                 )}
               </div>
 
-              {/* Direct Outgoing Dependencies (What this component imports / calls) */}
+              {/* Direct Outgoing Dependencies */}
               <div>
-                <h3 className="text-xs font-mono font-bold text-cyan-300 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
-                  <ArrowUpRight className="w-3.5 h-3.5 text-cyan-400" />
+                <h3 className="text-xs font-mono font-semibold text-[#B9D9BE] uppercase tracking-wider mb-1.5 flex items-center space-x-1">
+                  <ArrowUpRight className="w-3 h-3 text-[#78A887]" />
                   <span>Outgoing Dependencies ({selectionInfo?.outgoingEdges.length || 0})</span>
                 </h3>
-                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
                   {selectionInfo?.outgoingEdges.map((e, idx) => (
                     <div
                       key={idx}
                       onClick={() => setSelectedNodeId(e.target)}
-                      className="cursor-pointer text-xs font-mono bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 p-2 rounded-lg flex items-center justify-between transition"
+                      className="cursor-pointer text-xs font-mono bg-[#262C28] hover:bg-[#2B322D] border border-[#343B36] hover:border-[#537B5D] p-1.5 rounded flex items-center justify-between transition"
                     >
-                      <span className="text-slate-200 truncate">{e.target}</span>
-                      <span className="text-[10px] font-bold text-cyan-400 uppercase">
+                      <span className="text-[#F1F0E9] truncate">{e.target}</span>
+                      <span className="text-[9px] text-[#78A887] uppercase ml-1">
                         {e.relationship}
                       </span>
                     </div>
                   ))}
                   {(!selectionInfo || selectionInfo.outgoingEdges.length === 0) && (
-                    <p className="text-xs text-slate-500 font-mono italic">No outgoing dependencies</p>
+                    <p className="text-xs text-[#858E86] font-mono italic">No outgoing dependencies</p>
                   )}
                 </div>
               </div>
 
-              {/* Direct Incoming Dependencies (Who depends on this component) */}
+              {/* Direct Incoming Dependencies */}
               <div>
-                <h3 className="text-xs font-mono font-bold text-emerald-300 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
-                  <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-400" />
+                <h3 className="text-xs font-mono font-semibold text-[#81C995] uppercase tracking-wider mb-1.5 flex items-center space-x-1">
+                  <ArrowDownLeft className="w-3 h-3 text-[#81C995]" />
                   <span>Incoming Callers / Importers ({selectionInfo?.incomingEdges.length || 0})</span>
                 </h3>
-                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
                   {selectionInfo?.incomingEdges.map((e, idx) => (
                     <div
                       key={idx}
                       onClick={() => setSelectedNodeId(e.source)}
-                      className="cursor-pointer text-xs font-mono bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 p-2 rounded-lg flex items-center justify-between transition"
+                      className="cursor-pointer text-xs font-mono bg-[#262C28] hover:bg-[#2B322D] border border-[#343B36] hover:border-[#537B5D] p-1.5 rounded flex items-center justify-between transition"
                     >
-                      <span className="text-slate-200 truncate">{e.source}</span>
-                      <span className="text-[10px] font-bold text-emerald-400 uppercase">
+                      <span className="text-[#F1F0E9] truncate">{e.source}</span>
+                      <span className="text-[9px] text-[#81C995] uppercase ml-1">
                         {e.relationship}
                       </span>
                     </div>
                   ))}
                   {(!selectionInfo || selectionInfo.incomingEdges.length === 0) && (
-                    <p className="text-xs text-slate-500 font-mono italic">No incoming consumers detected</p>
+                    <p className="text-xs text-[#858E86] font-mono italic">No incoming callers</p>
                   )}
                 </div>
               </div>
@@ -1515,18 +1507,18 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
               {/* Symbols Inside File (if file node) */}
               {selectedFile && fileInternalSymbols.length > 0 && (
                 <div>
-                  <h3 className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
-                    <Binary className="w-3.5 h-3.5 text-amber-400" />
-                    <span>AST Symbols in File ({fileInternalSymbols.length})</span>
+                  <h3 className="text-xs font-mono font-semibold text-[#F1F0E9] uppercase tracking-wider mb-1.5 flex items-center space-x-1">
+                    <Binary className="w-3 h-3 text-[#D6A85F]" />
+                    <span>Symbols in File ({fileInternalSymbols.length})</span>
                   </h3>
                   <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
                     {fileInternalSymbols.map((sym) => (
                       <div
                         key={sym.id}
-                        className="text-xs font-mono bg-slate-900/50 border border-slate-800 p-2 rounded flex items-center justify-between"
+                        className="text-xs font-mono bg-[#262C28] border border-[#343B36] p-1.5 rounded flex items-center justify-between"
                       >
-                        <span className="text-slate-300 font-semibold truncate">{sym.name}</span>
-                        <span className="text-[10px] text-slate-500 uppercase">
+                        <span className="text-[#F1F0E9] font-medium truncate">{sym.name}</span>
+                        <span className="text-[9px] text-[#858E86] uppercase ml-1">
                           {sym.type} (L{sym.startLine})
                         </span>
                       </div>
@@ -1536,23 +1528,23 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
               )}
             </div>
 
-            {/* Bottom Actions Bar (Open File, Inspect AST, Ask AI) */}
-            <div className="p-4 border-t border-slate-800 bg-[#070b13] space-y-2">
+            {/* Bottom Actions Bar */}
+            <div className="p-3 border-t border-[#343B36] bg-[#171A19] space-y-1.5">
               {selectedFile && (
                 <button
                   onClick={() => onSelectFile(selectedFile)}
-                  className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs py-2 rounded-lg transition flex items-center justify-center space-x-1.5 shadow-md shadow-cyan-950/40 font-mono"
+                  className="w-full bg-[#78A887] hover:bg-[#8AB898] text-[#171A19] font-medium text-xs py-1.5 rounded transition flex items-center justify-center space-x-1.5 font-mono cursor-pointer"
                 >
                   <FileCode className="w-3.5 h-3.5" />
                   <span>Open File in Explorer</span>
                 </button>
               )}
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-1.5">
                 {onInspectAST && (
                   <button
                     onClick={onInspectAST}
-                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 rounded-lg transition border border-slate-700 font-mono text-center truncate px-2"
+                    className="bg-[#262C28] hover:bg-[#2B322D] text-[#F1F0E9] text-xs py-1.5 rounded transition border border-[#414A43] font-mono text-center truncate px-2 cursor-pointer"
                   >
                     Analyze AST
                   </button>
@@ -1565,9 +1557,9 @@ export const ArchitectureView: React.FC<ArchitectureViewProps> = ({
                         `Analyze the architecture role, dependencies, and responsibilities of ${selectedNode.name} in file ${selectedNode.path || selectedNode.name}.`,
                       )
                     }
-                    className="bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs py-2 rounded-lg transition border border-slate-700 font-mono text-center truncate px-2 flex items-center justify-center space-x-1"
+                    className="bg-[#262C28] hover:bg-[#2B322D] text-[#B9D9BE] text-xs py-1.5 rounded transition border border-[#414A43] font-mono text-center truncate px-2 flex items-center justify-center space-x-1 cursor-pointer"
                   >
-                    <Sparkles className="w-3 h-3" />
+                    <Sparkles className="w-3 h-3 text-[#78A887]" />
                     <span>Ask AI</span>
                   </button>
                 )}
